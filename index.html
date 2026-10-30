@@ -273,6 +273,9 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .letter{max-width:68ch;display:grid;gap:10px;font-size:1.05rem;line-height:1.75}
 .letter p{margin:0;text-align:justify;text-justify:inter-word}
 .letter .more summary{cursor:pointer;color:var(--water);font-weight:700;margin-top:4px}
+.letter.clamp{max-height:calc(1.05rem * 1.75 * 4);overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent);mask-image:linear-gradient(to bottom,#000 55%,transparent)}
+.read-more{justify-self:start;font:inherit;font-weight:700;color:var(--water);background:var(--water-soft);border:0;border-radius:999px;padding:7px 16px;cursor:pointer;min-height:38px}
+.read-more:hover{filter:brightness(.96)}
 .letter .more[open] summary{margin-bottom:10px}
 .letter .more p{margin:0 0 10px;text-align:justify;text-justify:inter-word}
 .toc{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:12px}
@@ -864,16 +867,26 @@ function issueEditForm(p){
     ${p.pageTopics?`<div class="field"><label for="eP">נושאים לפי עמוד (שורה לכל עמוד, נושאים מופרדים בפסיק)</label><textarea id="eP">${esc(p.pageTopics.map(a=>a.join(", ")).join("\n"))}</textarea></div>`:`<div class="field"><label for="eTo">נושאים נוספים בגיליון (שורה לכל נושא)</label><textarea id="eTo">${esc((p.toc||[]).join("\n"))}</textarea></div>`}
     <div class="row"><button class="btn">שמירה</button><button type="button" class="btn ghost" data-cancel-edit>ביטול</button></div></form>`;
 }
+const OPEN_LETTERS=new Set();
+document.addEventListener("click",ev=>{
+  const b=ev.target.closest(".read-more"); if(!b) return;
+  const id=b.dataset.letter, box=document.getElementById("letter-"+id); if(!box) return;
+  const open=!OPEN_LETTERS.has(id); open?OPEN_LETTERS.add(id):OPEN_LETTERS.delete(id);
+  box.classList.toggle("clamp",!open); b.setAttribute("aria-expanded",open);
+  b.textContent=open?"סגירת המכתב":"לקריאת המכתב המלא";
+  if(!open) box.closest(".issue").scrollIntoView({block:"start",behavior:"smooth"});
+});
 function issueCard(p,mode){
   if(S.editing&&S.editPost===p.id) return issueEditForm(p);
   const paras=String(p.body||"").split(/\n\s*\n/).filter(Boolean);
-  const short=mode==="home"&&paras.length>3;
-  const head=paras.slice(0,short?3:paras.length).map(x=>`<p>${esc(x)}</p>`).join("");
-  const rest=short?`<details class="more"><summary>להמשך המכתב</summary>${paras.slice(3).map(x=>`<p>${esc(x)}</p>`).join("")}</details>`:"";
+  const short=mode==="home";
+  const open=short&&OPEN_LETTERS.has(p.id);
+  const head=paras.map(x=>`<p>${esc(x)}</p>`).join("");
+  const rest=short?`</div><button type="button" class="read-more" data-letter="${p.id}" aria-expanded="${open}" aria-controls="letter-${p.id}">${open?"סגירת המכתב":"לקריאת המכתב המלא"}</button><div hidden>`:"";
   return `<article class="issue">
     <header class="issue-head"><span class="kicker">שוקדים על המלאכה</span><span class="meta">${esc(p.heb||"")}${p.heb?" · ":""}${fmt(p.date)}</span></header>
     <h2>${esc(p.title)}</h2>
-    <div class="letter">${head}${rest}</div>
+    <div class="letter${short&&!open?" clamp":""}" id="letter-${p.id}">${head}${rest}</div>
     ${p.toc&&p.toc.length&&!p.pageTopics?`<div class="toc"><span class="label">עוד בגיליון</span><ul>${p.toc.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:""}
     ${p.pages&&p.pages.length?`<div class="pages" aria-label="עמודי הגיליון">${p.pages.map((u,i)=>`<button class="page-thumb" data-issue="${p.id}" data-page="${i}" aria-label="עמוד ${i+1}"><img src="${esc(u)}" alt="עמוד ${i+1} בגיליון" loading="lazy"><span class="pt"><b>עמוד ${i+1}</b>${(p.pageTopics&&p.pageTopics[i]||[]).map(t=>`<em>${esc(t)}</em>`).join("")}</span></button>`).join("")}</div>`:""}
     <div class="row">${p.pages&&p.pages.length?`<button class="btn" data-issue="${p.id}" data-page="0">קריאת הגיליון המלא</button>`:""}${p.pdf&&S.cap.downloads?`<button class="btn ghost" data-pdf="${p.id}">הורדת PDF</button>`:""}<span class="msg" id="pdfMsg-${p.id}" role="status"></span>${mode==="home"?`<a class="btn ghost" href="#shokdim">גיליונות קודמים</a>`:""}${S.editing?`<button class="btn" data-edit-post="${p.id}">עריכת הגיליון</button><button class="btn danger" data-del-post="${p.id}">מחיקה</button>`:""}</div>
