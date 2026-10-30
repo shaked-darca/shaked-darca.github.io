@@ -488,6 +488,8 @@ nav.tabs a .chev{display:inline-block;font-size:.7em;margin-inline-start:6px;tra
 nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .dropmenu{position:absolute;top:100%;min-width:190px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgb(0 0 0 / .18);padding:6px;display:grid;gap:2px;z-index:16}
 .dropmenu[hidden]{display:none}
+.dropmenu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
+.dropmenu .mh{font-size:.8rem;color:var(--muted,#667);padding:6px 14px 2px;font-weight:600}
 .dropmenu a{display:block;padding:11px 14px;border-radius:8px;text-decoration:none;color:var(--ink);font-weight:600}
 .dropmenu a:hover,.dropmenu a:focus-visible{background:var(--sunk)}
 .dropmenu a[aria-current="page"]{background:var(--palm-soft);color:var(--palm)}
@@ -584,6 +586,13 @@ let menuFor=null;
 function closeMenu(){ if(menu.hidden) return; menu.hidden=true; if(menuFor) menuFor.setAttribute("aria-expanded","false"); menuFor=null; }
 function openMenu(a){
   const area=a.dataset.area, cur=tab();
+  if(area==="students"){ /* pick a grade straight from the menu */
+    const onCal=cur==="students";
+    const items=[["all","לוח כללי"],...DATA.grades.map(g=>[g,"שכבת "+GL[g]]),["staff","צוות · כל האירועים"]];
+    menu.innerHTML=`<div class="mh">בחירת שכבה</div>`+items.map(([k,l])=>{const on=onCal&&(k==="staff"?S.type==="staff":(S.type!=="staff"&&S.grade===k));
+      return `<a role="menuitem" href="#students" data-pick="${k}" aria-current="${on?"page":"false"}">${esc(l)}</a>`}).join("")+
+      `<hr>`+SUB.students.filter(k=>k!=="students").map(k=>`<a role="menuitem" href="#${k}" aria-current="${k===cur?"page":"false"}">${VIEWS[k].label}</a>`).join("");
+  } else
   menu.innerHTML=SUB[area].map(k=>`<a role="menuitem" href="#${k}" aria-current="${k===cur?"page":"false"}">${VIEWS[k].label}</a>`).join("");
   const nb=document.querySelector(".navbar").getBoundingClientRect(), r=a.getBoundingClientRect();
   menu.style.right=Math.max(8,nb.right-r.right)+"px"; menu.style.left="auto";
@@ -598,7 +607,12 @@ document.querySelectorAll("nav.tabs a").forEach(a=>{
   a.addEventListener("click",ev=>{ev.preventDefault(); if(menuFor===a) closeMenu(); else {closeMenu(); openMenu(a);} });
   a.addEventListener("keydown",ev=>{ if(ev.key==="ArrowDown"){ev.preventDefault(); a.dataset.kbd=1; closeMenu(); openMenu(a); delete a.dataset.kbd;} });
 });
-menu.addEventListener("click",ev=>{ if(ev.target.closest("a")) closeMenu(); });
+menu.addEventListener("click",ev=>{ const a=ev.target.closest("a"); if(!a) return;
+  const k=a.dataset.pick;
+  if(k){ if(k==="staff"){S.grade="all";S.type="staff";} else {S.grade=k; if(S.type==="staff") S.type="all";}
+    store.set("grade",S.grade); store.set("type",S.type); S.selDay=null;
+    if(tab()==="students"){ev.preventDefault(); render();} }
+  closeMenu(); });
 menu.addEventListener("keydown",ev=>{
   const items=[...menu.querySelectorAll("a")], i=items.indexOf(document.activeElement);
   if(ev.key==="ArrowDown"){ev.preventDefault();items[(i+1)%items.length].focus();}
@@ -1033,7 +1047,7 @@ function render(){
   document.querySelectorAll("nav.tabs a").forEach(a=>a.setAttribute("aria-current",a.dataset.area===area?"page":"false"));
   const note = DATA.sample?`<div class="sample-note"><b>תוכן לדוגמה.</b> השוקדים והעדכונים כאן להמחשה עד שיוזן התוכן האמיתי. האירועים בלוח השנה אמיתיים.</div>`:"";
   closeMenu();
-  const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${VIEWS[t].label}</b></p>`:"";
+  const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${t==="students"?(S.type==="staff"?"צוות · כל האירועים":S.grade==="all"?"לוח כללי":"שכבת "+esc(GL[S.grade]||"")):VIEWS[t].label}</b></p>`:"";
   const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView}[t]();
   $("#view").innerHTML = `<div class="view">${note}${body}</div>`;
   $("#editbar").innerHTML = S.editing?`<div class="edit-bar"><b>מצב עריכה</b><span>${S.dirty?"יש שינויים שעוד לא פורסמו":"כל השינויים פורסמו"}</span><span class="spacer"></span>${DATA.sample?`<button class="btn" data-clear-sample>הסרת התוכן לדוגמה</button>`:""}<button class="btn" data-publish ${S.dirty?"":"disabled"}>פרסום השינויים</button><span class="msg" id="pubMsg" role="status" style="color:inherit"></span></div>`:"";
