@@ -540,8 +540,10 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 "use strict";
 document.documentElement.setAttribute("dir","rtl");document.documentElement.setAttribute("lang","he");
 const DATA = JSON.parse(document.getElementById("data").textContent);
-(DATA.events||[]).forEach(e=>{ if(/מופ"?ד/.test(e.title)) e.grades=["staff"]; });
-(DATA.events||[]).forEach(e=>{ if(e.type!=="exam" && /מבחן|מבדק|בגרות|מתכונת|בוחן|מפמ"?ר/.test(e.title)) e.type="exam"; });
+/* address of the school's Google Apps Script that serves the calendars live (empty = use only the copy embedded above) */
+const CAL_URL = "";
+function fixEvent(e){ if(/מופ"?ד/.test(e.title)) e.grades=["staff"]; if(e.type!=="exam" && /מבחן|מבדק|בגרות|מתכונת|בוחן|מפמ"?ר/.test(e.title)) e.type="exam"; }
+(DATA.events||[]).forEach(fixEvent);
 const GL = {"זחבנים":"ז׳–ח׳ בנים","זחבנות":"ז׳–ח׳ בנות","ט":"ט׳","י":"י׳","יא":"י״א","יב":"י״ב","all":"כל בית הספר","staff":"צוות"};
 const TYPES = {exam:"מבחן",event:"אירוע",trip:"טיול / סיור",holiday:"חג / חופשה"};
 const WD = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
@@ -1163,6 +1165,28 @@ async function publish(){
   catch(e){m.textContent=e&&e.code==="conflict"?"מישהו אחר פרסם שינוי באותו רגע. הדף ייטען מחדש, נסו שוב.":"הפרסום לא הצליח. נסו שוב."}
 }
 $("#editToggle").addEventListener("click",()=>{S.editing=!S.editing;render()});
+
+/* ---------- live calendars ---------- */
+// newest list wins: the copy embedded in the page, the last one this browser received, or a fresh one from Google
+function applyCal(c){
+  if(!c||!c.ok||!Array.isArray(c.events)||c.events.length<30) return false;
+  if(DATA.syncedAt&&c.syncedAt&&c.syncedAt<DATA.syncedAt) return false;
+  c.events.forEach(fixEvent);
+  DATA.events=(DATA.events||[]).filter(e=>e.src!=="gcal").concat(c.events);
+  DATA.syncedAt=c.syncedAt;
+  return true;
+}
+applyCal(store.get("cal",null));
+let calAt=0;
+function loadCal(){
+  if(!CAL_URL||Date.now()-calAt<120000) return;
+  calAt=Date.now();
+  fetch(CAL_URL,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(c=>{
+    if(applyCal(c)){ store.set("cal",c); if(!S.editing) render(); }
+  }).catch(()=>{});
+}
+loadCal();
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") loadCal(); });
 
 render();
 
