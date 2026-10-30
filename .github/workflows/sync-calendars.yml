@@ -2,8 +2,8 @@ name: סנכרון יומנים
 
 on:
   schedule:
-    # every hour between 06:00 and 22:00 Israel time (03:00–20:00 UTC, also covers winter time)
-    - cron: "17 3-20 * * *"
+    # backup copy inside the page, once a day; visitors get the live list from the Apps Script
+    - cron: "23 3 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -q icalendar recurring-ical-events
