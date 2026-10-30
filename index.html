@@ -519,7 +519,7 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
   <div class="navbar"><div class="wrap">
     <nav class="tabs" aria-label="ניווט ראשי">
       <a href="#home" data-area="home">בית</a>
-      <a href="#students" data-area="students">תלמידים והורים</a>
+      <a href="#students" data-area="students">אירועים שכבתיים</a>
       <a href="#staff" data-area="staff">צוות</a>
     </nav>
     <button class="edit-link" id="editToggle" hidden>מצב עריכה</button>
@@ -576,8 +576,8 @@ const VIEWS = {
 const SUB = {home:[], students:["students","placements"], staff:["staff","computers"]};
 const tab = ()=>{const h=location.hash.slice(1);return VIEWS[h]?h:"home"};
 window.addEventListener("hashchange",()=>{S.openForm=null;render()});
-/* dropdown menus under the תלמידים והורים / צוות tabs */
-const AREA_NAME={students:"תלמידים והורים",staff:"צוות"};
+/* dropdown menus under the אירועים שכבתיים / צוות tabs */
+const AREA_NAME={students:"אירועים שכבתיים",staff:"צוות"};
 const menu=document.createElement("div"); menu.className="dropmenu"; menu.id="tabMenu"; menu.setAttribute("role","menu"); menu.hidden=true;
 document.querySelector(".navbar").appendChild(menu);
 let menuFor=null;
@@ -613,10 +613,12 @@ document.querySelector("nav.tabs").addEventListener("scroll",closeMenu);
 /* ---------- calendar ---------- */
 function visible(e){
   if(S.type==="holiday") S.type="all";
-  if(S.type!=="all"){ if(S.type==="exam"&&e.type!=="exam") return false;
+  const staffArea = VIEWS[tab()].area==="staff";
+  if(S.type==="staff"&&!staffArea) S.type="all";
+  if(S.type==="staff") return isStaff(e);
+  if(S.type!=="all"){ if(isStaff(e)) return false; if(S.type==="exam"&&e.type!=="exam") return false;
     if(S.type==="events"&&!(e.type==="event"||e.type==="trip")) return false;
     if(S.type==="holiday"&&e.type!=="holiday") return false; }
-  const staffArea = VIEWS[tab()].area==="staff";
   if(!staffArea && isStaff(e)) return false;
   if(staffArea && isStaff(e)) return true;
   if(S.grade==="all") return e.cals ? (e.cals.includes("school")||e.cals.includes("holidays")) : e.grades.includes("all");
@@ -718,7 +720,7 @@ function calendarView(){
   const exams = sorted().filter(e=>e.type==="exam"&&visible(e)&&pd(e.date)>=today&&pd(e.date)<=soon);
   let h = `<div class="controls">
     <div class="row" role="group" aria-label="בחירת שכבה"><span class="label">שכבה</span>${g.map(x=>`<button class="chip" data-grade="${x}" aria-pressed="${S.grade===x}">${x==="all"?"לוח כללי":esc(GL[x])}</button>`).join("")}</div>
-    <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","אירועים חברתיים"]].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
+    <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","אירועים חברתיים"],...(VIEWS[tab()].area==="staff"?[["staff","צוות"]]:[])].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
     <span class="spacer"></span><div class="seg" role="group" aria-label="תצוגה">${[["month","לוח חודשי"],["list","רשימת אירועים"]].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${S.mode===k}">${l}</button>`).join("")}</div></div>
   </div>
 ${VIEWS[tab()].area==="staff"?`<p class="legend staff-legend"><span class="sw"></span>אירועי צוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
