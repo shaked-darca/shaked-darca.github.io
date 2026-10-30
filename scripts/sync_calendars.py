@@ -81,7 +81,31 @@ def as_date(v):
     return v, False
 
 
+def from_script(html):
+    """The Apps Script serves the finished list; returns it, or None if unavailable."""
+    m = re.search(r'const CAL_URL = "(https://[^"]+)"', html)
+    if not m:
+        return None
+    try:
+        req = urllib.request.Request(m.group(1), headers={"User-Agent": "Mozilla/5.0 (school-site-sync)"})
+        d = json.loads(urllib.request.urlopen(req, timeout=90).read().decode("utf8"))
+        if d.get("ok") and len(d.get("events", [])) >= 30:
+            print("Using Apps Script list,", len(d["events"]), "events")
+            return d["events"]
+        print("Apps Script answered without events:", d.get("error"))
+    except Exception as e:
+        print("Apps Script unreachable:", e)
+    return None
+
+
 def main(path):
+    fresh = from_script(open(path, encoding="utf8").read())
+    if fresh is None:
+        fresh = from_ics()
+    write(path, fresh)
+
+
+def from_ics():
     today = dt.datetime.now(TZ).date()
     y = today.year if today.month >= 8 else today.year - 1
     start, end = dt.date(y, 8, 25), dt.date(y + 1, 8, 31)
@@ -145,7 +169,10 @@ def main(path):
     fresh = sorted(merged.values(), key=lambda x: (x["date"], x["title"]))
     if len(fresh) < 30:
         print("FAILED too few events", len(fresh)); sys.exit(1)
+    return fresh
 
+
+def write(path, fresh):
     html = open(path, encoding="utf8").read()
     m = re.search(r'(<script type="application/json" id="data">)(.*?)(</script>)', html, re.S)
     if not m:

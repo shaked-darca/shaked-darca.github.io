@@ -541,7 +541,7 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 document.documentElement.setAttribute("dir","rtl");document.documentElement.setAttribute("lang","he");
 const DATA = JSON.parse(document.getElementById("data").textContent);
 /* address of the school's Google Apps Script that serves the calendars live (empty = use only the copy embedded above) */
-const CAL_URL = "";
+const CAL_URL = "https://script.google.com/macros/s/AKfycby7gZjUr8FChpG17Hs1wA8hWRN_enoXBSOvKqDCgtQ49HDG84csbwGValtj3jhGHrE3/exec";
 function fixEvent(e){ if(/מופ"?ד/.test(e.title)) e.grades=["staff"]; if(e.type!=="exam" && /מבחן|מבדק|בגרות|מתכונת|בוחן|מפמ"?ר/.test(e.title)) e.type="exam"; }
 (DATA.events||[]).forEach(fixEvent);
 const GL = {"זחבנים":"ז׳–ח׳ בנים","זחבנות":"ז׳–ח׳ בנות","ט":"ט׳","י":"י׳","יא":"י״א","יב":"י״ב","all":"כל בית הספר","staff":"צוות"};
