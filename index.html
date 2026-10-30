@@ -613,7 +613,9 @@ document.querySelector("nav.tabs").addEventListener("scroll",closeMenu);
 /* ---------- calendar ---------- */
 function visible(e){
   if(S.type==="holiday") S.type="all";
-  if(S.type==="staff") return isStaff(e);
+  if(S.type==="staff"){ /* teachers' full picture: every grade's events plus staff events */
+    if(isStaff(e)||S.grade==="all") return true;
+    return e.grades.includes("all")||e.grades.includes(S.grade); }
   if(isStaff(e)) return false;
   if(S.type!=="all"){ if(S.type==="exam"&&e.type!=="exam") return false;
     if(S.type==="events"&&!(e.type==="event"||e.type==="trip")) return false;
@@ -720,7 +722,7 @@ function calendarView(){
     <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","אירועים חברתיים"],["staff","צוות"]].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
     <span class="spacer"></span><div class="seg" role="group" aria-label="תצוגה">${[["month","לוח חודשי"],["list","רשימת אירועים"]].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${S.mode===k}">${l}</button>`).join("")}</div></div>
   </div>
-${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>אירועי צוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
+${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
   h += S.mode==="list" ? listView(evs) : monthView(evs);
   if(S.type==="exam") h += `<section class="focus"><h2>מבחנים קרובים${S.grade!=="all"?" · שכבת "+esc(GL[S.grade]):""}</h2>
     ${exams.length?`<div class="focus-list">${exams.map(e=>{const d=pd(e.date);return `<div class="exam-card ${canPlan(e)?"plannable":""}" ${canPlan(e)?`data-plan="${e.id}" role="button" tabindex="0" title="תכנון למידה למבחן"`:""}><span class="d">יום ${WD[d.getDay()]}, ${fmt(e.date)}</span><span class="t">${esc(e.title)}</span><span class="g">${e.grades.map(x=>GL[x]).join(", ")}</span></div>`}).join("")}</div>`:`<p class="empty">אין מבחנים בשבועיים הקרובים${S.grade==="all"?"":" לשכבה הזו"}.</p>`}
