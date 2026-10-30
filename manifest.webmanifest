@@ -20,6 +20,6 @@
   "shortcuts": [
     { "name": "אירועים שכבתיים", "short_name": "לוח שנה", "url": "./#students" },
     { "name": "שוקדים", "url": "./#shokdim" },
-    { "name": "צוות", "url": "./#staff" }
+    { "name": "הזמנת מחשבים", "url": "./#staff" }
   ]
 }
