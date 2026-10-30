@@ -481,6 +481,19 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .slide-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;width:32px;height:32px;cursor:pointer;font-size:.75rem;color:var(--ink)}
 .slide-n{margin-inline-start:auto;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){.slide{transition:none}}
+
+/* tab dropdowns: open right under the tab, on the plain nav background */
+.navbar{position:relative;z-index:15}
+nav.tabs a .chev{display:inline-block;font-size:.7em;margin-inline-start:6px;transition:transform .15s;vertical-align:middle}
+nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.dropmenu{position:absolute;top:100%;min-width:190px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgb(0 0 0 / .18);padding:6px;display:grid;gap:2px;z-index:16}
+.dropmenu[hidden]{display:none}
+.dropmenu a{display:block;padding:11px 14px;border-radius:8px;text-decoration:none;color:var(--ink);font-weight:600}
+.dropmenu a:hover,.dropmenu a:focus-visible{background:var(--sunk)}
+.dropmenu a[aria-current="page"]{background:var(--palm-soft);color:var(--palm)}
+.dropmenu a[aria-current="page"]::after{content:" ✓"}
+.crumb{font-size:.9rem;color:var(--muted);font-weight:600}
+.crumb b{color:var(--ink)}
 </style>
 <template id="shell">
 <header class="top">
@@ -560,6 +573,39 @@ const VIEWS = {
 const SUB = {home:[], students:["students","placements"], staff:["staff","computers"]};
 const tab = ()=>{const h=location.hash.slice(1);return VIEWS[h]?h:"home"};
 window.addEventListener("hashchange",()=>{S.openForm=null;render()});
+/* dropdown menus under the תלמידים והורים / צוות tabs */
+const AREA_NAME={students:"תלמידים והורים",staff:"צוות"};
+const menu=document.createElement("div"); menu.className="dropmenu"; menu.id="tabMenu"; menu.setAttribute("role","menu"); menu.hidden=true;
+document.querySelector(".navbar").appendChild(menu);
+let menuFor=null;
+function closeMenu(){ if(menu.hidden) return; menu.hidden=true; if(menuFor) menuFor.setAttribute("aria-expanded","false"); menuFor=null; }
+function openMenu(a){
+  const area=a.dataset.area, cur=tab();
+  menu.innerHTML=SUB[area].map(k=>`<a role="menuitem" href="#${k}" aria-current="${k===cur?"page":"false"}">${VIEWS[k].label}</a>`).join("");
+  const nb=document.querySelector(".navbar").getBoundingClientRect(), r=a.getBoundingClientRect();
+  menu.style.right=Math.max(8,nb.right-r.right)+"px"; menu.style.left="auto";
+  menu.hidden=false; a.setAttribute("aria-expanded","true"); menuFor=a;
+  const mr=menu.getBoundingClientRect(); if(mr.left<8){menu.style.right="auto";menu.style.left="8px";}
+  const first=menu.querySelector('[aria-current="page"]')||menu.querySelector("a"); if(first && a.dataset.kbd) first.focus();
+}
+document.querySelectorAll("nav.tabs a").forEach(a=>{
+  if(!SUB[a.dataset.area].length) return;
+  a.setAttribute("aria-haspopup","menu"); a.setAttribute("aria-expanded","false"); a.setAttribute("aria-controls","tabMenu");
+  a.insertAdjacentHTML("beforeend",'<span class="chev" aria-hidden="true">▾</span>');
+  a.addEventListener("click",ev=>{ev.preventDefault(); if(menuFor===a) closeMenu(); else {closeMenu(); openMenu(a);} });
+  a.addEventListener("keydown",ev=>{ if(ev.key==="ArrowDown"){ev.preventDefault(); a.dataset.kbd=1; closeMenu(); openMenu(a); delete a.dataset.kbd;} });
+});
+menu.addEventListener("click",ev=>{ if(ev.target.closest("a")) closeMenu(); });
+menu.addEventListener("keydown",ev=>{
+  const items=[...menu.querySelectorAll("a")], i=items.indexOf(document.activeElement);
+  if(ev.key==="ArrowDown"){ev.preventDefault();items[(i+1)%items.length].focus();}
+  else if(ev.key==="ArrowUp"){ev.preventDefault();items[(i-1+items.length)%items.length].focus();}
+  else if(ev.key==="Escape"){const a=menuFor;closeMenu();a&&a.focus();}
+});
+document.addEventListener("click",ev=>{ if(!ev.target.closest("#tabMenu, nav.tabs a[aria-haspopup]")) closeMenu(); });
+document.addEventListener("keydown",ev=>{ if(ev.key==="Escape") closeMenu(); });
+window.addEventListener("resize",closeMenu);
+document.querySelector("nav.tabs").addEventListener("scroll",closeMenu);
 
 /* ---------- calendar ---------- */
 function visible(e){
@@ -982,7 +1028,8 @@ function render(){
   const t=tab(), area=VIEWS[t].area;
   document.querySelectorAll("nav.tabs a").forEach(a=>a.setAttribute("aria-current",a.dataset.area===area?"page":"false"));
   const note = DATA.sample?`<div class="sample-note"><b>תוכן לדוגמה.</b> השוקדים והעדכונים כאן להמחשה עד שיוזן התוכן האמיתי. האירועים בלוח השנה אמיתיים.</div>`:"";
-  const sub = SUB[area].length?`<nav class="subnav" aria-label="ניווט משני">${SUB[area].map(k=>`<a href="#${k}" aria-current="${k===t?"page":"false"}">${VIEWS[k].label}</a>`).join("")}</nav>`:"";
+  closeMenu();
+  const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${VIEWS[t].label}</b></p>`:"";
   const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:calendarView,placements:placementsView,forms:formsView,computers:computersView}[t]();
   $("#view").innerHTML = `<div class="view">${note}${body}</div>`;
   $("#editbar").innerHTML = S.editing?`<div class="edit-bar"><b>מצב עריכה</b><span>${S.dirty?"יש שינויים שעוד לא פורסמו":"כל השינויים פורסמו"}</span><span class="spacer"></span>${DATA.sample?`<button class="btn" data-clear-sample>הסרת התוכן לדוגמה</button>`:""}<button class="btn" data-publish ${S.dirty?"":"disabled"}>פרסום השינויים</button><span class="msg" id="pubMsg" role="status" style="color:inherit"></span></div>`:"";
