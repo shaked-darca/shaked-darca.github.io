@@ -492,7 +492,8 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .dropmenu a:hover,.dropmenu a:focus-visible{background:var(--sunk)}
 .dropmenu a[aria-current="page"]{background:var(--palm-soft);color:var(--palm)}
 .dropmenu a[aria-current="page"]::after{content:" ✓"}
-.crumb{font-size:.9rem;color:var(--muted);font-weight:600}
+.crumb{margin:0 0 -8px;font-size:.85rem;line-height:1.3;color:var(--muted);font-weight:600}
+@media (max-width:640px){.crumb{margin-bottom:-4px;font-size:.8rem}}
 .crumb b{color:var(--ink)}
 </style>
 <template id="shell">
