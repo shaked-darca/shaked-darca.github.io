@@ -186,7 +186,7 @@ function md5_(s) {
 
 // the script cache holds at most 100KB per entry, so long lists are split into parts
 function writeCache_(body) {
-  const c = CacheService.getScriptCache(), size = 90000, parts = {};
+  const c = CacheService.getScriptCache(), size = 40000, parts = {};
   const n = Math.ceil(body.length / size);
   for (let i = 0; i < n; i++) parts[CACHE_KEY + ":" + i] = body.slice(i * size, (i + 1) * size);
   parts[CACHE_KEY] = String(n);
