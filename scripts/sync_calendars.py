@@ -90,11 +90,11 @@ def from_script(html):
         req = urllib.request.Request(m.group(1), headers={"User-Agent": "Mozilla/5.0 (school-site-sync)"})
         d = json.loads(urllib.request.urlopen(req, timeout=90).read().decode("utf8"))
         if d.get("ok") and len(d.get("events", [])) >= 30:
-            print("Using Apps Script list,", len(d["events"]), "events")
+            print("::notice::Apps Script OK -", len(d["events"]), "events, synced", d.get("syncedAt"))
             return d["events"]
-        print("Apps Script answered without events:", d.get("error"))
+        print("::warning::Apps Script answered without events:", d.get("error"))
     except Exception as e:
-        print("Apps Script unreachable:", e)
+        print("::warning::Apps Script unreachable:", e)
     return None
 
 
