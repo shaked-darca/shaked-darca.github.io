@@ -110,7 +110,12 @@ main{padding-block:22px 90px}
 .tag{font-size:.75rem;border-radius:999px;padding:1px 8px;background:var(--sunk);color:var(--muted);font-weight:600}
 .pill{font-size:.78rem;font-weight:700;border-radius:999px;padding:2px 10px;background:var(--cs);color:var(--c);white-space:nowrap}
 .pill.sm{font-size:.7rem;padding:1px 7px;margin-inline-start:6px;vertical-align:1px;font-weight:600}
-.subtags{display:flex;flex-wrap:wrap;gap:6px}
+.typerow{flex-wrap:nowrap}
+.types{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;padding-block:2px}
+.types::-webkit-scrollbar{display:none}
+.tchip{flex:none;padding:4px 12px;min-height:34px;font-size:.9rem}
+.tchip[aria-pressed="true"]{background:var(--water-soft);border-color:var(--water);color:var(--water)}
+.typerow .seg{flex:none}
 button.tagbtn{border:0;cursor:pointer;font-family:inherit;line-height:inherit}
 button.tagbtn:hover{box-shadow:inset 0 0 0 1px var(--c)}
 button.tagbtn:focus-visible{outline:2px solid var(--c);outline-offset:1px}
@@ -847,7 +852,11 @@ function weekLabel(k){
   const e=new Date(s); e.setDate(s.getDate()+6);
   return `${s.getDate()}.${s.getMonth()+1} – ${e.getDate()}.${e.getMonth()+1}`;
 }
+/* שורת סינון אחת: הכל, מבחנים, תגיות חברתי, צוות */
+function typeChips(){ return [["all","הכל"],["exam","מבחנים"]].concat(socList().map(([k,l])=>["events:"+k,l]),[["staff","צוות"]]); }
+function typeKey(){ return S.type==="events"?"events:"+S.soc:S.type; }
 function calendarView(){
+  if(S.type==="events"&&S.soc==="all") S.type="all";
   if(S.soc==="army"&&!ARMY_G.includes(S.grade)) S.soc="all";
   const g = ["all",...DATA.grades];
   if(!g.includes(S.grade)) S.grade="all";
@@ -856,9 +865,8 @@ function calendarView(){
   const exams = sorted().filter(e=>e.type==="exam"&&visible(e)&&pd(e.date)>=today&&pd(e.date)<=soon);
   let h = `<div class="controls">
     <div class="row" role="group" aria-label="בחירת שכבה"><span class="label">שכבה</span>${g.map(x=>`<button class="chip" data-grade="${x}" aria-pressed="${S.grade===x}">${x==="all"?"לוח כללי":esc(GL[x])}</button>`).join("")}</div>
-    <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","חברתי"],["staff","צוות"]].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
-    <span class="spacer"></span><div class="seg" role="group" aria-label="תצוגה">${[["month","לוח חודשי"],["list","רשימת אירועים"]].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${S.mode===k}">${l}</button>`).join("")}</div></div>
-    ${S.type==="events"?`<div class="subtags" role="group" aria-label="סוג אירוע חברתי">${[["all","הכל"]].concat(socList()).map(([k,l])=>`<button class="chip" data-soc="${k}" aria-pressed="${S.soc===k}">${l}</button>`).join("")}</div>`:""}
+    <div class="row typerow"><div class="types" role="group" aria-label="סינון לפי סוג">${typeChips().map(([k,l])=>`<button class="chip tchip" data-tagpick="${k}" aria-pressed="${typeKey()===k}">${l}</button>`).join("")}</div>
+    <div class="seg" role="group" aria-label="תצוגה">${[["month","לוח חודשי"],["list","רשימה"]].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${S.mode===k}">${l}</button>`).join("")}</div></div>
   </div>
 ${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
   h += S.mode==="list" ? listView(evs) : monthView(evs);
