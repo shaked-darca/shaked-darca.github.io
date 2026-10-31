@@ -18,7 +18,8 @@
  *   3. פריסה ← ניהול פריסות ← עריכה (עיפרון) ← גרסה: "גרסה חדשה" ← פריסה.
  *      הכתובת נשארת אותה כתובת.
  *
- * הסקריפט גם קורא (בלי לשנות) את טבלת הזמנת המחשבים, ומחזיר אותה בכתובת ‎/exec?what=computers
+ * הסקריפט גם קורא את טבלת הזמנת המחשבים (‎/exec?what=computers), ומקבל הזמנות מהאתר:
+ * כותב כל הזמנה בזוג העמודות הפנוי הראשון, ומפתח עגלת אורן בעמודות שלו.
  */
 
 const TZ = "Asia/Jerusalem";
@@ -53,6 +54,9 @@ const COMPUTERS_SHEET = "18QQlfovhC1HoT6OkuY-CgiuVP2Ex7_akWVL92ap6HRM";
 const COMPUTERS_DAYS = ["יום א'", "יום ב'", "יום ג'", "יום ד'", "יום ה'"];
 const COMPUTERS_KEY = "computers-v1";
 const COMPUTERS_SECONDS = 2 * 60;
+// מספרי העמודות (A=0): זוגות רגילים B..AA, מפתח עגלת אורן AB:AC, CRT5 AD:AE (האתר לא כותב ל-CRT5)
+const COMP_FIRST = 1, COMP_LAST = 25, CART_COL = 27, CRT5_COL = 29;
+const SITE_NOTE = "הוזמן מהאתר";
 
 /* ---------- web app ---------- */
 
@@ -185,9 +189,9 @@ function buildComputers_() {
         const who = String(vals[i][c] || "").trim(), what = String(vals[i][c + 1] || "").trim();
         if (!who && !what) continue;
         const fixed = bold[i][c] === "bold" || (c + 1 < bold[i].length && bold[i][c + 1] === "bold");
-        bookings.push({ who, what, fixed });
+        bookings.push({ who, what, fixed, col: c });
       }
-      lessons.push({ name: num ? "שיעור " + num[1] : label, time: time ? time[1] + "–" + time[2] : "", bookings });
+      lessons.push({ row: i, name: num ? "שיעור " + num[1] : label, time: time ? time[1] + "–" + time[2] : "", bookings });
     }
     days.push({ wd, name, date: isoDate_(vals[0] && vals[0][0]), lessons });
   });
@@ -204,6 +208,95 @@ function isoDate_(s) {
   const y = m[3].length === 2 ? "20" + m[3] : m[3];
   return y + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
 }
+
+/* ---------- booking from the site ---------- */
+
+// האתר שולח: {action:"book", wd, rows:[...], who, what, cart}  או  {action:"cancel", wd, row, col, who, what}
+function doPost(e) {
+  let out;
+  const lock = LockService.getScriptLock();
+  try {
+    const req = JSON.parse(e.postData.contents);
+    lock.waitLock(15000);
+    out = req.action === "cancel" ? cancel_(req) : book_(req);
+    CacheService.getScriptCache().remove(COMPUTERS_KEY);
+    out.data = JSON.parse(buildComputers_());
+  } catch (err) {
+    out = { ok: false, error: String(err && err.message || err) };
+  } finally {
+    try { lock.releaseLock(); } catch (x) {}
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function daySheet_(wd) {
+  const name = COMPUTERS_DAYS[wd];
+  const sh = name && SpreadsheetApp.openById(COMPUTERS_SHEET).getSheetByName(name);
+  if (!sh) throw new Error("היום לא נמצא בטבלה");
+  return sh;
+}
+
+function book_(req) {
+  const who = clean_(req.who, 40), what = clean_(req.what, 60), cart = !!req.cart;
+  if (!who) throw new Error("חסר שם");
+  if (!what && !cart) throw new Error("חסר מה להזמין");
+  const rows = (req.rows || []).map(Number).filter(r => r > 0);
+  if (!rows.length) throw new Error("לא נבחר שיעור");
+  const sh = daySheet_(Number(req.wd));
+  const vals = sh.getDataRange().getDisplayValues();
+  const date = isoDate_(vals[0] && vals[0][0]);
+  if (date && date < fmt_(new Date(), "yyyy-MM-dd")) throw new Error("היום הזה כבר עבר");
+  const stamp = SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm");
+  const results = [];
+  rows.forEach(r => {
+    const line = vals[r];
+    if (!line || !/שיעור/.test(line[0])) { results.push({ row: r, ok: false, msg: "השיעור לא נמצא" }); return; }
+    const name = String(line[0]).replace(/\s+/g, " ").trim().match(/שיעור\s*\d+/);
+    const res = { row: r, lesson: name ? name[0] : "", ok: true, refs: [] };
+    if (cart) {
+      if (String(line[CART_COL] || "").trim() || String(line[CART_COL + 1] || "").trim()) {
+        res.ok = false; res.msg = "העגלה באורן כבר תפוסה";
+      }
+    }
+    let free = -1;
+    if (res.ok && what) {
+      for (let c = COMP_FIRST; c <= COMP_LAST; c += 2) {
+        if (!String(line[c] || "").trim() && !String(line[c + 1] || "").trim()) { free = c; break; }
+      }
+      if (free < 0) { res.ok = false; res.msg = "אין מקום פנוי בשורה של השיעור"; }
+    }
+    if (res.ok) {
+      if (what) { put_(sh, r, free, who, what, stamp); res.refs.push({ col: free, who, what }); }
+      if (cart) { put_(sh, r, CART_COL, who, "אורן", stamp); res.refs.push({ col: CART_COL, who, what: "אורן" }); }
+    }
+    results.push(res);
+  });
+  SpreadsheetApp.flush();
+  return { ok: results.some(x => x.ok), date, results };
+}
+
+function cancel_(req) {
+  const sh = daySheet_(Number(req.wd));
+  const r = Number(req.row), c = Number(req.col);
+  if (!(r > 0) || c < COMP_FIRST || c > CART_COL) throw new Error("הזמנה לא תקינה");
+  const rng = sh.getRange(r + 1, c + 1, 1, 2);
+  const v = rng.getDisplayValues()[0], note = String(sh.getRange(r + 1, c + 1).getNote() || "");
+  if (String(v[0]).trim() !== String(req.who || "").trim() || String(v[1]).trim() !== String(req.what || "").trim() || note.indexOf(SITE_NOTE) !== 0) {
+    return { ok: false, error: "ההזמנה השתנתה בטבלה, אפשר לבטל רק דרך הטבלה" };
+  }
+  rng.clearContent(); rng.clearNote();
+  SpreadsheetApp.flush();
+  return { ok: true };
+}
+
+function put_(sh, r, c, who, what, note) {
+  const rng = sh.getRange(r + 1, c + 1, 1, 2);
+  rng.setValues([[safe_(who), safe_(what)]]).setFontWeight("normal");
+  sh.getRange(r + 1, c + 1).setNote(note);
+}
+function clean_(s, max) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, max); }
+// מונע מטקסט שמתחיל ב-= או + להפוך לנוסחה בגיליון
+function safe_(s) { return /^[=+\-@]/.test(s) ? "'" + s : s; }
 
 /* ---------- sorting rules ---------- */
 

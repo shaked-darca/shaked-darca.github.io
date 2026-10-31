@@ -243,6 +243,23 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .cp-item.fixed{background:var(--palm-soft)}
 .cp-item .tag{background:var(--surface);color:var(--palm)}
 .cp-meta{font-size:.82rem;color:var(--muted);margin:0}
+.cp-actions{display:flex;flex-wrap:wrap;gap:8px}
+.cp-form{max-width:none}
+.cp-form h3{font-size:1.15rem}
+.cp-rows{display:grid;gap:6px}
+.cp-row{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;background:var(--bg)}
+.cp-row input{width:20px;height:20px;flex:none}
+.cp-row .t{color:var(--muted);font-size:.85rem}
+.cp-row .warn{margin-inline-start:auto;font-size:.8rem;font-weight:700;color:var(--exam)}
+.cp-row:has(input:checked){border-color:var(--water);background:var(--water-soft)}
+.cp-two{display:grid;grid-template-columns:120px 1fr;gap:10px}
+.cp-res{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.cp-res li.bad{color:var(--exam)}
+.cp-res li.good{color:var(--palm)}
+.cp-done{background:var(--palm-soft);color:var(--palm);border-radius:var(--r);padding:10px 14px;font-weight:700}
+.cp-item.cart{background:#f4e9d8}
+.cp-item.mine{outline:2px solid var(--water);outline-offset:-2px}
+.cp-item button{border:0;background:none;cursor:pointer;color:var(--exam);font-size:1.05rem;line-height:1;padding:0 2px;min-width:24px;min-height:24px}
 @media (max-width:480px){.cp-lesson{grid-template-columns:1fr;gap:6px}.cp-lesson .ln{display:flex;gap:8px;align-items:baseline}}
 .free{border:1px dashed var(--line);background:none;border-radius:6px;padding:3px 10px;color:var(--muted);cursor:pointer;font-size:.85rem}
 .legend{font-size:.85rem;color:var(--muted)}
@@ -974,7 +991,15 @@ function bkSubscribe(){
   BK.unsub=S.cap.db.collection("bookings").onSnapshot(q=>{BK.list=q.docs.map(d=>({id:d.id,...d.data()}));BK.loaded=true;if(tab()==="computers")renderBkTable()},()=>{});
 }
 /* computer bookings: read-only view of the coordinator's sheet, served by the Apps Script */
-const CP={data:store.get("computers",null),at:0,day:null,err:false};
+const CP={data:store.get("computers",null),at:0,day:null,err:false,form:false,fDay:null,sel:[],who:store.get("cpWho",""),n:"",x:"",cart:false,busy:false,res:null,done:""};
+const CART_COL=27, CP_LAST=25;
+function cpMine(){return (store.get("cpMine",[])||[]).filter(m=>m.date>=iso(today))}
+async function cpPost(body){
+  const r=await fetch(CAL_URL,{method:"POST",body:JSON.stringify(body)});
+  const j=await r.json();
+  if(j&&j.data&&j.data.ok){CP.data=j.data;store.set("computers",j.data);CP.at=Date.now()}
+  return j;
+}
 function loadComp(){
   if(!CAL_URL||Date.now()-CP.at<60000) return;
   CP.at=Date.now();
@@ -984,6 +1009,25 @@ function loadComp(){
   }).catch(()=>{CP.err=true;if(tab()==="computers"||tab()==="staff") render()});
 }
 const DAYL=["א׳","ב׳","ג׳","ד׳","ה׳"];
+function cpForm(days){
+  const open=days.filter(d=>!d.date||d.date>=iso(today));
+  if(CP.fDay==null||!open.some(d=>d.wd===CP.fDay)) CP.fDay=(open.find(d=>d.wd===CP.day)||open[0]).wd;
+  const fd=days.find(d=>d.wd===CP.fDay);
+  const rows=fd.lessons.map(l=>{const cartBusy=l.bookings.some(b=>b.col===CART_COL), full=l.bookings.filter(b=>b.col<=CP_LAST).length>=(CP_LAST+1)/2;
+    const warn=full?"השורה מלאה":(CP.cart&&cartBusy)?"העגלה תפוסה":"";
+    return `<label class="cp-row"><input type="checkbox" name="cpRow" value="${l.row}" ${CP.sel.includes(l.row)?"checked":""}><span><b>${esc(l.name)}</b> <span class="t" dir="ltr">${esc(l.time)}</span></span>${warn?`<span class="warn">${warn}</span>`:""}</label>`}).join("");
+  const res=CP.res?`<ul class="cp-res" role="status">${CP.res.map(r=>`<li class="${r.ok?"good":"bad"}">${esc(r.text)}</li>`).join("")}</ul>`:"";
+  return `<form class="panel cp-form" id="cpForm" autocomplete="off"><h3>הזמנה חדשה</h3>
+    <div class="field"><label>יום</label><div class="cp-days">${open.map(d=>`<button type="button" class="chip" data-cpfday="${d.wd}" aria-pressed="${d.wd===CP.fDay}">יום ${DAYL[d.wd]}${d.date?`<small>${shortDate(d.date)}</small>`:""}</button>`).join("")}</div></div>
+    <div class="field"><label>שיעורים (אפשר לסמן כמה)</label><div class="cp-rows">${rows}</div></div>
+    <div class="field"><label for="cpWho">שם המורה</label><input id="cpWho" value="${esc(CP.who)}" maxlength="40" required></div>
+    <div class="cp-two"><div class="field"><label for="cpN">מס' מחשבים</label><input id="cpN" type="number" inputmode="numeric" min="1" max="60" value="${esc(CP.n)}"></div>
+      <div class="field"><label for="cpX">ציוד נוסף (לא חובה)</label><input id="cpX" value="${esc(CP.x)}" maxlength="40" placeholder="עכברים, אוזניות…"></div></div>
+    <label class="check"><input type="checkbox" id="cpCart" ${CP.cart?"checked":""}> מפתח לעגלת המחשבים באורן</label>
+    ${res}
+    <div class="row"><button class="btn" type="submit" ${CP.busy?"disabled":""}>${CP.busy?"שולח…":"הזמנה"}</button><button class="btn ghost" type="button" data-cpclose>סגירה</button></div>
+  </form>`;
+}
 function shortDate(s){if(!s)return"";const[y,m,d]=s.split("-").map(Number);return d+"."+m}
 function computersView(){
   loadComp();
@@ -998,13 +1042,17 @@ function computersView(){
   const day=days.find(d=>d.wd===CP.day);
   const first=days[0].date, last=days[days.length-1].date;
   const week=first&&last?`השבוע שבטבלה: ${shortDate(first)} עד ${shortDate(last)}`:"השבוע שבטבלה";
-  const item=b=>`<span class="cp-item ${b.fixed?"fixed":""}"><b>${esc(b.who||"—")}</b>${b.what?`<bdi>${esc(b.what)}</bdi>`:""}${b.fixed?`<span class="tag">קבוע</span>`:""}</span>`;
+  const mine=cpMine();
+  const item=(b,l)=>{const cart=b.col===CART_COL;const k=mine.findIndex(m=>m.date===day.date&&m.row===l.row&&m.col===b.col&&m.who===b.who&&m.what===b.what);
+    return `<span class="cp-item ${b.fixed?"fixed":""} ${cart?"cart":""} ${k>=0?"mine":""}"><b>${esc(b.who||"—")}</b>${cart?`<span>מפתח עגלה · אורן</span>`:b.what?`<bdi dir="rtl">${esc(b.what.replace(/\s*\+\s*/g," + "))}</bdi>`:""}${b.fixed?`<span class="tag">קבוע</span>`:""}${k>=0?`<button data-cpcancel="${k}" aria-label="ביטול ההזמנה שלי">×</button>`:""}</span>`};
   return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>מה כבר הוזמן השבוע, לפי הטבלה של אחראי המחשבים</p></div>
   <div class="cp">
-    <div class="cp-top"><span class="cp-week">${week}</span>${link}</div>
+    <div class="cp-top"><span class="cp-week">${week}</span><div class="cp-actions">${CP.form?"":`<button class="btn" data-cpnew ${days.some(d=>!d.date||d.date>=iso(today))?"":"disabled"}>הזמנה חדשה</button>`}<a class="btn ghost" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">פתיחת הטבלה</a></div></div>
+    ${CP.done?`<div class="cp-done" role="status">${esc(CP.done)}</div>`:""}
+    ${CP.form?cpForm(days):""}
     <div class="cp-days" role="group" aria-label="יום">${days.map(d=>`<button class="chip" data-cpday="${d.wd}" aria-pressed="${d.wd===CP.day}">יום ${DAYL[d.wd]||d.name}${d.date?`<small>${shortDate(d.date)}</small>`:""}</button>`).join("")}</div>
-    <div class="cp-list">${day.lessons.length?day.lessons.map(l=>`<div class="cp-lesson ${l.bookings.length?"":"free"}"><div class="ln"><span>${esc(l.name)}</span>${l.time?`<small dir="ltr">${esc(l.time)}</small>`:""}</div><div class="cp-items">${l.bookings.length?l.bookings.map(item).join(""):`<span class="empty">אין הזמנות</span>`}</div></div>`).join(""):`<p class="empty">אין שיעורים ביום הזה בטבלה.</p>`}</div>
-    <p class="cp-meta"><span class="cp-item fixed" style="font-size:.8rem;padding:1px 8px"><span class="tag">קבוע</span></span> הזמנה קבועה (מודגשת בטבלה). ההזמנות עצמן נעשות בטבלה.${D.syncedAt?` · עודכן ${esc(D.syncedAt.slice(11))}`:""}${CP.err?" · אין חיבור, מוצג המידע האחרון שנטען":""}</p>
+    <div class="cp-list">${day.lessons.length?day.lessons.map(l=>`<div class="cp-lesson ${l.bookings.length?"":"free"}"><div class="ln"><span>${esc(l.name)}</span>${l.time?`<small dir="ltr">${esc(l.time)}</small>`:""}</div><div class="cp-items">${l.bookings.length?l.bookings.map(b=>item(b,l)).join(""):`<span class="empty">אין הזמנות</span>`}</div></div>`).join(""):`<p class="empty">אין שיעורים ביום הזה בטבלה.</p>`}</div>
+    <p class="cp-meta"><span class="cp-item fixed" style="font-size:.8rem;padding:1px 8px"><span class="tag">קבוע</span></span> הזמנה קבועה (מודגשת בטבלה). הזמנה שעשית מהטלפון הזה מסומנת במסגרת, ואפשר לבטל אותה ב־×. ביטול של כל הזמנה אחרת – בטבלה.${D.syncedAt?` · עודכן ${esc(D.syncedAt.slice(11))}`:""}${CP.err?" · אין חיבור, מוצג המידע האחרון שנטען":""}</p>
   </div>`;
 }
 function renderBkTable(){
@@ -1237,6 +1285,16 @@ document.addEventListener("click",async ev=>{
   else if(d.bkweek){const x=pd(BK.date);x.setDate(x.getDate()+Number(d.bkweek));BK.date=iso(x);render()}
   else if(d.bkday){BK.date=d.bkday;render()}
   else if(d.cpday){CP.day=Number(d.cpday);render()}
+  else if("cpnew" in d){CP.form=true;CP.res=null;CP.done="";CP.sel=[];render()}
+  else if("cpclose" in d){CP.form=false;CP.res=null;render()}
+  else if(d.cpfday){CP.fDay=Number(d.cpfday);CP.sel=[];CP.res=null;render()}
+  else if(d.cpcancel){const m=cpMine()[Number(d.cpcancel)]; if(!m||!confirm("לבטל את ההזמנה של "+m.who+"?")) return;
+    b.disabled=true; CP.done="";
+    try{const j=await cpPost({action:"cancel",wd:m.wd,row:m.row,col:m.col,who:m.who,what:m.what});
+      store.set("cpMine",cpMine().filter(x=>!(x.date===m.date&&x.row===m.row&&x.col===m.col)));
+      CP.done=j.ok?"ההזמנה בוטלה.":(j.error||"הביטול לא הצליח");}
+    catch(e){CP.done="אין חיבור, הביטול לא נשלח. נסו שוב או בטלו בטבלה."}
+    render()}
   else if(d.bkdel){try{await S.cap.db.collection("bookings").doc(d.bkdel).delete()}catch(e){}}
   else if(d.bkfree){$("#bkRes").value=d.res;document.querySelectorAll('input[name="bkp"]').forEach(i=>i.checked=i.value===d.bkfree);$("#bkTeacher").focus();$("#bkForm").scrollIntoView({behavior:"smooth",block:"start"})}
   else if(d.plan){ev.stopPropagation();openPlanner(d.plan)}
@@ -1254,6 +1312,36 @@ document.addEventListener("click",async ev=>{
   else if(d.delPlace){delete DATA.placements[d.delPlace];changed()}
 });
 document.addEventListener("input",ev=>{if(ev.target.id==="sigQ"){S.sigQ=ev.target.value;renderSig()}});
+document.addEventListener("change",ev=>{const t=ev.target;
+  if(t.name==="cpRow"){const r=Number(t.value);CP.sel=t.checked?[...new Set([...CP.sel,r])]:CP.sel.filter(x=>x!==r)}
+  else if(t.id==="cpCart"){CP.cart=t.checked;render()}});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id==="cpWho")CP.who=t.value;else if(t.id==="cpN")CP.n=t.value;else if(t.id==="cpX")CP.x=t.value});
+document.addEventListener("submit",async ev=>{
+  if(ev.target.id!=="cpForm") return;
+  ev.preventDefault(); ev.stopImmediatePropagation();
+  const n=String(CP.n||"").trim(), x=String(CP.x||"").trim(), who=String(CP.who||"").trim();
+  const what=n&&x?n+"+"+x:(n||x), err=[];
+  if(!CP.sel.length) err.push("צריך לסמן לפחות שיעור אחד.");
+  if(!who) err.push("צריך למלא שם.");
+  if(!what&&!CP.cart) err.push("צריך למלא מספר מחשבים או לסמן את מפתח העגלה.");
+  if(err.length){CP.res=err.map(t=>({ok:false,text:t}));render();return}
+  store.set("cpWho",who); CP.busy=true; CP.res=null; render();
+  const wd=CP.fDay;
+  try{
+    const j=await cpPost({action:"book",wd,rows:CP.sel,who,what,cart:CP.cart});
+    if(j.error&&!j.results){CP.res=[{ok:false,text:j.error}]}
+    else{
+      const mine=cpMine(); (j.results||[]).forEach(r=>(r.refs||[]).forEach(f=>mine.push({date:j.date,wd,row:r.row,col:f.col,who:f.who,what:f.what})));
+      store.set("cpMine",mine);
+      const bad=(j.results||[]).filter(r=>!r.ok), good=(j.results||[]).filter(r=>r.ok);
+      if(!bad.length){CP.form=false;CP.res=null;CP.sel=[];CP.n="";CP.x="";CP.cart=false;CP.day=wd;
+        CP.done="ההזמנה נקלטה בטבלה: "+good.map(r=>r.lesson).join(", ")+"."}
+      else{CP.sel=bad.map(r=>r.row);
+        CP.res=good.map(r=>({ok:true,text:r.lesson+" – הוזמן ✓"})).concat(bad.map(r=>({ok:false,text:r.lesson+" – "+r.msg})))}
+    }
+  }catch(e){CP.res=[{ok:false,text:"אין חיבור, ההזמנה לא נשלחה. אפשר לנסות שוב או להזמין בטבלה."}]}
+  CP.busy=false; render();
+},true);
 document.addEventListener("keydown",ev=>{const c=ev.target.closest("[data-open-form]");if(c&&(ev.key==="Enter"||ev.key===" ")){ev.preventDefault();S.openForm=c.dataset.openForm;render()}});
 
 document.addEventListener("submit",async ev=>{
