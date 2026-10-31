@@ -1295,17 +1295,19 @@ function linksView(){
   const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
   const android=/Android/i.test(navigator.userAgent);
   const go=(u,l,ghost)=>`<a class="btn${ghost?" ghost":""}" href="${u}" target="_blank" rel="noopener">${l}</a>`;
+  /* app-store buttons: the visitor's own phone first; ghost=true makes them all light */
+  const stores=(iosU,andU,ghost)=> ios ? go(iosU,"הורדה לאייפון",ghost)+go(andU,"לאנדרואיד",1)
+               : android ? go(andU,"הורדה לאנדרואיד",ghost)+go(iosU,"לאייפון",1)
+               : go(iosU,"אפליקציה לאייפון",ghost)+go(andU,"אפליקציה לאנדרואיד",ghost);
+  const MASHOV_IOS="https://apps.apple.com/il/app/id683777271", MASHOV_ANDROID="https://play.google.com/store/apps/details?id=com.mashov.main";
   const SHAHAF_IOS="https://apps.apple.com/il/app/id1368425766", SHAHAF_ANDROID="https://play.google.com/store/apps/details?id=com.shahafsoft.timetableapp";
-  const shahaf = ios ? go(SHAHAF_IOS,"הורדה לאייפון")+go(SHAHAF_ANDROID,"לאנדרואיד",1)
-               : android ? go(SHAHAF_ANDROID,"הורדה לאנדרואיד")+go(SHAHAF_IOS,"לאייפון",1)
-               : go(SHAHAF_IOS,"אייפון")+go(SHAHAF_ANDROID,"אנדרואיד");
   return `<div class="masthead"><h2>קישורים חשובים</h2><p>המערכות שמשתמשים בהן ביום-יום</p></div><div class="links">
   <section class="lcard"><h3><span aria-hidden="true">📊</span>משו״ב</h3>
     <p>ציונים, מבחנים, נוכחות והודעות מהצוות. לתלמידים ולהורים.</p>
-    <div class="lbtns">${go("https://web.mashov.info/students/login","כניסה למשו״ב")}</div></section>
+    <div class="lbtns">${go("https://web.mashov.info/students/login","כניסה למשו״ב")}${stores(MASHOV_IOS,MASHOV_ANDROID,1)}</div></section>
   <section class="lcard"><h3><span aria-hidden="true">🕘</span>אפליקציית שחף</h3>
     <p>מערכת השעות של הכיתה, שינויים במערכת ולוח מבחנים.</p>
-    <div class="lbtns">${shahaf}</div></section>
+    <div class="lbtns">${stores(SHAHAF_IOS,SHAHAF_ANDROID)}</div></section>
   <p class="links-help">לא מצליחים להיכנס? <a href="#guides" data-guide="g-login">מדריך כניסה למשו״ב ולשחף</a></p>
   </div>`;
 }
