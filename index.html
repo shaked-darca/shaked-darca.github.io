@@ -109,6 +109,8 @@ main{padding-block:22px 90px}
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
 .tag{font-size:.75rem;border-radius:999px;padding:1px 8px;background:var(--sunk);color:var(--muted);font-weight:600}
 .pill{font-size:.78rem;font-weight:700;border-radius:999px;padding:2px 10px;background:var(--cs);color:var(--c);white-space:nowrap}
+.pill.sm{font-size:.7rem;padding:1px 7px;margin-inline-start:6px;vertical-align:1px;font-weight:600}
+.subtags{display:flex;flex-wrap:wrap;gap:6px}
 .t-exam{--c:var(--exam);--cs:var(--exam-soft)}
 .t-event{--c:var(--water);--cs:var(--water-soft)}
 .t-trip{--c:var(--palm);--cs:var(--palm-soft)}
@@ -633,10 +635,22 @@ document.documentElement.setAttribute("dir","rtl");document.documentElement.setA
 const DATA = JSON.parse(document.getElementById("data").textContent);
 /* address of the school's Google Apps Script that serves the calendars live (empty = use only the copy embedded above) */
 const CAL_URL = "https://script.google.com/macros/s/AKfycby7gZjUr8FChpG17Hs1wA8hWRN_enoXBSOvKqDCgtQ49HDG84csbwGValtj3jhGHrE3/exec";
-function fixEvent(e){ if(/מופ"?ד/.test(e.title)) e.grades=["staff"]; if(e.type!=="exam" && /מבחן|מבדק|בגרות|מתכונת|בוחן|מפמ"?ר/.test(e.title)) e.type="exam"; }
+function fixEvent(e){ if(/מופ"?ד|היערכות/.test(e.title)) e.grades=["staff"]; if(/קורס מד"?א/.test(e.title)) e.grades=["י"]; if(/בחירות לכנסת/.test(e.title)) e.type="holiday"; if(e.type!=="exam" && /מבחן|מבדק|בגרות|מתכונת|בוחן|מפמ"?ר|מועד(י)? ב|עזריאלי|יום הערכה|הגשה|cobe/i.test(e.title)) e.type="exam"; }
 (DATA.events||[]).forEach(fixEvent);
 const GL = {"זחבנים":"ז׳–ח׳ בנים","זחבנות":"ז׳–ח׳ בנות","ט":"ט׳","י":"י׳","יא":"י״א","יב":"י״ב","all":"כל בית הספר","staff":"צוות"};
 const TYPES = {exam:"מבחן",event:"אירוע",trip:"טיול / סיור",holiday:"חג / חופשה"};
+/* תגיות חברתי: נקבעות אוטומטית לפי שם האירוע, כך שגם אירוע חדש ביומן מקבל תגית */
+const SOC = [["talks","שיחות וימי עיון"],["army","צבא ושירות"],["sport","ספורט"],["parents","הורים"],["trip","טיולים וסיורים"],["general","כללי"]];
+const SOC_L = Object.fromEntries(SOC);
+function socTag(e){ const t=e.title;
+  if(/הורים|תעודות|ערב סיכום|ערב סיום|ערב מהו"ת/.test(t)) return "parents";
+  if(e.type==="trip"||/סיור|טיול|מסע|קמפוס|סמינר|שבוע נגב|נטיעות|פולין/.test(t)) return "trip";
+  if(/כדורסל|נבחרת|מירוצ|טריאתלון/.test(t)) return "sport";
+  if(/צו( |$)|לשכת גיוס|סיירות|מד"?א|מחלץ|חוסן קרבי/.test(t)) return "army";
+  if(/ראיה|חיסונ/.test(t)) return "general";
+  if(/שיחה|שיחת|יום עיון|יום זהות|יום שיא|דרך ארץ|קפה דילמה|חשיפה|הכוון|פאנל|נושא|יומן קריאה|שבוע השפה|ספריה|תכנית|הכנה/.test(t)) return "talks";
+  return "general"; }
+function tagLabel(e){ if(isStaff(e)) return "צוות"; if(e.type==="exam") return "מבחן"; if(e.type==="holiday") return "חג / חופשה"; return SOC_L[socTag(e)]; }
 const WD = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const MN = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 const $ = (s,r=document)=>r.querySelector(s);
@@ -649,7 +663,7 @@ const fmt = s=>{const d=pd(s);return d.getDate()+" ב"+MN[d.getMonth()]};
 const uid = ()=>Math.random().toString(36).slice(2,9);
 
 const S = {
-  grade: store.get("grade","all"), type: store.get("type","all"), mode: store.get("mode2","month"),
+  grade: store.get("grade","all"), type: store.get("type","all"), soc: store.get("soc","all"), mode: store.get("mode2","month"),
   calStart: weekStart(today), calRows: 5, selDay:(window.matchMedia&&matchMedia("(max-width:640px)").matches)?iso(today):null, showPast:false,
   editing:false, canEdit:false, dirty:false, openForm:null, showSubs:false,
   cap:{}
@@ -728,6 +742,7 @@ function visible(e){
   if(isStaff(e)) return false;
   if(S.type!=="all"){ if(S.type==="exam"&&e.type!=="exam") return false;
     if(S.type==="events"&&!(e.type==="event"||e.type==="trip")) return false;
+    if(S.type==="events"&&S.soc!=="all"&&socTag(e)!==S.soc) return false;
     if(S.type==="holiday"&&e.type!=="holiday") return false; }
   if(S.grade==="all") return e.cals ? (e.cals.includes("school")||e.cals.includes("holidays")) : e.grades.includes("all");
   return e.grades.includes("all")||e.grades.includes(S.grade);
@@ -741,11 +756,11 @@ function evRow(e){
   return `<div class="ev t-${cls(e)} ${d<today?"past":""}">
     <div class="date"><div class="n">${d.getDate()}</div><div class="w">${WD[d.getDay()]} · ${MN[d.getMonth()].slice(0,3)}</div></div>
     <div class="body"><div class="title">${esc(e.title)}</div>${e.end?`<div class="note">עד ${fmt(e.end)}</div>`:""}${e.note?`<div class="note">${esc(e.note)}</div>`:""}<div class="tags">${gradeTags(e)}</div></div>
-    <div class="row" style="flex-direction:column;align-items:end;gap:6px"><span class="pill">${isStaff(e)?"צוות":TYPES[e.type]}</span>${planBtn(e)}<a class="addcal" href="${gLink(e)}" target="_blank" rel="noopener">+ ליומן שלי</a></div>
+    <div class="row" style="flex-direction:column;align-items:end;gap:6px"><span class="pill">${esc(tagLabel(e))}</span>${planBtn(e)}<a class="addcal" href="${gLink(e)}" target="_blank" rel="noopener">+ ליומן שלי</a></div>
   </div>`;
 }
 function dayRow(e){
-  return `<div class="drow t-${cls(e)}"><span class="bar"></span><span class="dt">${esc(e.title)}${e.note?`<small>${esc(e.note)}</small>`:""}</span><span class="dg">${e.grades.map(g=>esc(GL[g]||g)).join(", ")}</span>${planBtn(e)}<a class="addcal" href="${gLink(e)}" target="_blank" rel="noopener" aria-label="הוספה ליומן שלי">+ ליומן</a></div>`;
+  return `<div class="drow t-${cls(e)}"><span class="bar"></span><span class="dt">${esc(e.title)}<span class="pill sm">${esc(tagLabel(e))}</span>${e.note?`<small>${esc(e.note)}</small>`:""}</span><span class="dg">${e.grades.map(g=>esc(GL[g]||g)).join(", ")}</span>${planBtn(e)}<a class="addcal" href="${gLink(e)}" target="_blank" rel="noopener" aria-label="הוספה ליומן שלי">+ ליומן</a></div>`;
 }
 /* ---------- study planner (saved on this device only) ---------- */
 function planKey(id){return "plan:"+id}
@@ -828,8 +843,9 @@ function calendarView(){
   const exams = sorted().filter(e=>e.type==="exam"&&visible(e)&&pd(e.date)>=today&&pd(e.date)<=soon);
   let h = `<div class="controls">
     <div class="row" role="group" aria-label="בחירת שכבה"><span class="label">שכבה</span>${g.map(x=>`<button class="chip" data-grade="${x}" aria-pressed="${S.grade===x}">${x==="all"?"לוח כללי":esc(GL[x])}</button>`).join("")}</div>
-    <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","אירועים חברתיים"],["staff","צוות"]].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
+    <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","חברתי"],["staff","צוות"]].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
     <span class="spacer"></span><div class="seg" role="group" aria-label="תצוגה">${[["month","לוח חודשי"],["list","רשימת אירועים"]].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${S.mode===k}">${l}</button>`).join("")}</div></div>
+    ${S.type==="events"?`<div class="subtags" role="group" aria-label="סוג אירוע חברתי">${[["all","הכל"]].concat(SOC).map(([k,l])=>`<button class="chip" data-soc="${k}" aria-pressed="${S.soc===k}">${l}</button>`).join("")}</div>`:""}
   </div>
 ${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
   h += S.mode==="list" ? listView(evs) : monthView(evs);
@@ -1303,7 +1319,8 @@ document.addEventListener("click",async ev=>{
   const b=ev.target.closest("button,[data-open-form],[data-plan]"); if(!b) return;
   const d=b.dataset;
   if(d.grade){S.grade=d.grade;store.set("grade",S.grade);render()}
-  else if(d.type){S.type=d.type;store.set("type",S.type);render()}
+  else if(d.type){S.type=d.type;S.soc="all";store.set("type",S.type);store.set("soc","all");render()}
+  else if(d.soc){S.soc=d.soc;store.set("soc",S.soc);render()}
   else if(d.mode){S.mode=d.mode;store.set("mode2",S.mode);render()}
   else if(d.month){calNav(Number(d.month))}
   else if("monthToday" in d){calGoToday();S.selDay=matchMedia("(max-width:640px)").matches?iso(today):null;render()}
