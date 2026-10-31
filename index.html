@@ -513,7 +513,19 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .dropmenu a[aria-current="page"]{background:var(--palm-soft);color:var(--palm)}
 .dropmenu a[aria-current="page"]::after{content:" ✓"}
 /* guides */
-.guide{max-width:760px}
+.guides{display:grid;gap:10px;max-width:760px}
+.guide{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);scroll-margin-top:12px}
+.guide[open]{border-color:var(--palm)}
+.guide summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:16px;font-weight:700;font-size:1.1rem;min-height:56px}
+.guide summary::-webkit-details-marker{display:none}
+.guide summary:hover{background:var(--sunk);border-radius:var(--r)}
+.guide summary:focus-visible{outline:3px solid var(--water);outline-offset:2px;border-radius:var(--r)}
+.guide .gi{flex:0 0 auto;font-size:1.3rem}
+.guide .gt{flex:1}
+.guide .chev{color:var(--muted);transition:transform .2s}
+.guide[open] .chev{transform:rotate(180deg)}
+.guide[open] summary{color:var(--palm)}
+.guide .gbody{display:grid;gap:10px;padding:0 16px 16px}
 .guide .lead{margin:0;color:var(--muted)}
 .guide .opt{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
 .guide .opt:first-of-type{border-top:0;padding-top:0}
@@ -525,8 +537,6 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .guide code{direction:ltr;unicode-bidi:isolate;display:inline-block;background:var(--sunk);border-radius:6px;padding:1px 7px;font-weight:700}
 .guide .tip{background:var(--water-soft);border-radius:8px;padding:10px 14px}
 @media (max-width:480px){.navbar nav.tabs a{padding:12px 8px;font-size:.95rem}}
-.toc{display:flex;flex-wrap:wrap;gap:8px}
-.toc a{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;color:var(--ink);background:var(--surface)}
 .crumb{margin:0 0 -8px;font-size:.85rem;line-height:1.3;color:var(--muted);font-weight:600}
 @media (max-width:640px){.crumb{margin-bottom:-4px;font-size:.8rem}}
 .crumb b{color:var(--ink)}
@@ -656,7 +666,11 @@ menu.addEventListener("keydown",ev=>{
 });
 document.addEventListener("click",ev=>{ if(!ev.target.closest("#tabMenu, nav.tabs a[aria-haspopup]")) closeMenu(); });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape") closeMenu(); });
-document.addEventListener("click",ev=>{ const j=ev.target.closest("[data-jump]"); if(!j) return; ev.preventDefault(); const el=document.getElementById(j.dataset.jump); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); });
+document.addEventListener("click",ev=>{ const j=ev.target.closest("[data-open]"); if(!j) return; ev.preventDefault(); const el=document.getElementById(j.dataset.open); if(!el) return; el.open=true; el.scrollIntoView({behavior:"smooth",block:"start"}); });
+/* guides: only one open at a time (also on browsers without <details name>) */
+document.addEventListener("toggle",ev=>{ const d=ev.target; if(!d.matches||!d.matches("details.guide")||!d.open) return;
+  document.querySelectorAll("details.guide[open]").forEach(o=>{ if(o!==d) o.open=false; });
+  const r=d.getBoundingClientRect(); if(r.top<0||r.top>innerHeight*.6) d.scrollIntoView({behavior:"smooth",block:"start"}); },true);
 window.addEventListener("resize",closeMenu);
 document.querySelector("nav.tabs").addEventListener("scroll",closeMenu);
 
@@ -1095,10 +1109,9 @@ function placementsView(){
 function guidesView(){
   const MOE_PHONE="https://apps2.education.gov.il/Idm.SelfServices/update-select", MOE_RESET="https://apps2.education.gov.il/EduLogin/selfreset.aspx";
   const btn=(u,l)=>`<div><a class="btn" href="${u}" target="_blank" rel="noopener">${l}</a></div>`;
-  return `<div class="masthead"><h2>מדריכים</h2><p>הסברים קצרים, צעד אחר צעד</p></div>
-  <nav class="toc" aria-label="מדריכים בעמוד"><a href="#g-login" data-jump="g-login">כניסה למשוב, שחף, מייל וקלאסרום</a><a href="#g-mail" data-jump="g-mail">כניסה למייל ההתיישבותי</a><a href="#g-reset" data-jump="g-reset">שם משתמש וסיסמה</a></nav>
+  return `<div class="masthead"><h2>מדריכים</h2><p>לוחצים על מדריך כדי לפתוח אותו</p></div><div class="guides">
 
-  <section class="place guide" id="g-login"><h3>כניסה למשוב, שחף, המייל ההתיישבותי וקלאסרום</h3>
+  <details class="guide" id="g-login" name="guides"><summary><span class="gi" aria-hidden="true">🔐</span><span class="gt">כניסה למשוב, שחף, המייל ההתיישבותי וקלאסרום</span><span class="chev" aria-hidden="true">▾</span></summary><div class="gbody">
     <p class="lead">הכניסה תמיד נעשית דרך <b>הזדהות משרד החינוך</b>. יש שתי דרכים להתחבר. מורים והורים – אפשר לעזור בזה לתלמידים שמתקשים.</p>
     <div class="opt"><h4>📲 דרך א׳: תעודת זהות וטלפון</h4>
       <p>מקלידים תעודת זהות ומקבלים קוד לטלפון.</p>
@@ -1107,10 +1120,10 @@ function guidesView(){
     <div class="opt"><h4>🔑 דרך ב׳: שם משתמש וסיסמה</h4>
       <p>מהירה יותר – בלי לחכות לקוד ב-SMS. כדאי במיוחד במחשב אישי, שבו הדפדפן יכול לזכור את הפרטים.</p>
       <p class="tip">לפני כן ודאו שמספר הטלפון שלכם מעודכן, אחרת שם המשתמש יישלח שוב להורים.</p>
-      <p>איך מקבלים את הפרטים – במדריך <a href="#g-reset" data-jump="g-reset">שם משתמש וסיסמה</a> למטה.</p></div>
-  </section>
+      <p>איך מקבלים את הפרטים – במדריך <a href="#guides" data-open="g-reset">שם משתמש וסיסמה</a>.</p></div>
+  </div></details>
 
-  <section class="place guide" id="g-mail"><h3>כניסה למייל ההתיישבותי</h3>
+  <details class="guide" id="g-mail" name="guides"><summary><span class="gi" aria-hidden="true">📧</span><span class="gt">כניסה למייל ההתיישבותי</span><span class="chev" aria-hidden="true">▾</span></summary><div class="gbody">
     <p class="lead">לא להיבהל, צעד אחר צעד. תודה לעידן על ההסבר.</p>
     <ol class="steps">
       <li>נכנסים ל-Gmail (בגוגל או באפליקציה).</li>
@@ -1119,9 +1132,9 @@ function guidesView(){
       <li>מקלידים תעודת זהות.</li>
       <li>מקבלים קוד לטלפון ומקלידים אותו.</li>
     </ol>
-  </section>
+  </div></details>
 
-  <section class="place guide" id="g-reset"><h3>שם משתמש וסיסמה במשרד החינוך</h3>
+  <details class="guide" id="g-reset" name="guides"><summary><span class="gi" aria-hidden="true">🔑</span><span class="gt">שם משתמש וסיסמה במשרד החינוך</span><span class="chev" aria-hidden="true">▾</span></summary><div class="gbody">
     <p class="lead">שכחתם או אף פעם לא ידעתם? אין בעיה – מאפסים סיסמה בעצמכם.</p>
     <ol class="steps">
       <li>ודאו שמספר הטלפון שלכם מעודכן (<a href="${MOE_PHONE}" target="_blank" rel="noopener">עדכון טלפון</a>).</li>
@@ -1130,7 +1143,7 @@ function guidesView(){
     </ol>
     ${btn(MOE_RESET,"איפוס סיסמה")}
     <p class="legend">שכחתם שוב? חוזרים לכאן ומאפסים מחדש.</p>
-  </section>`;
+  </div></details></div>`;
 }
 
 /* ---------- render ---------- */
