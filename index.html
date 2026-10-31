@@ -567,6 +567,14 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .dropmenu a:hover,.dropmenu a:focus-visible{background:var(--sunk)}
 .dropmenu a[aria-current="page"]{background:var(--palm-soft);color:var(--palm)}
 .dropmenu a[aria-current="page"]::after{content:" ✓"}
+/* important links */
+.links{display:grid;gap:12px;max-width:760px}
+.lcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:10px}
+.lcard h3{margin:0;display:flex;align-items:center;gap:10px;font-size:1.15rem;color:var(--ink)}
+.lcard p{margin:0;color:var(--muted)}
+.lcard .lbtns{display:flex;flex-wrap:wrap;gap:8px}
+.lcard .lbtns .btn{min-height:46px}
+.links-help{margin:4px 0 0;color:var(--muted)}
 /* guides */
 .guides{display:grid;gap:10px;max-width:760px}
 .guide{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);scroll-margin-top:12px}
@@ -592,6 +600,7 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .guide code{direction:ltr;unicode-bidi:isolate;display:inline-block;background:var(--sunk);border-radius:6px;padding:1px 7px;font-weight:700}
 .guide .tip{background:var(--water-soft);border-radius:8px;padding:10px 14px}
 @media (max-width:480px){.navbar nav.tabs a{padding:12px 8px;font-size:.95rem}}
+@media (max-width:440px){.navbar nav.tabs{gap:0}.navbar nav.tabs a{padding:12px 5px;font-size:.86rem}.navbar nav.tabs a .chev{margin-inline-start:3px}}
 .crumb{margin:0 0 -8px;font-size:.85rem;line-height:1.3;color:var(--muted);font-weight:600}
 @media (max-width:640px){.crumb{margin-bottom:-4px;font-size:.8rem}}
 .crumb b{color:var(--ink)}
@@ -621,6 +630,7 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
       <a href="#home" data-area="home">בית</a>
       <a href="#students" data-area="students">אירועים שכבתיים</a>
       <a href="#staff" data-area="staff">צוות</a>
+      <a href="#links" data-area="links">קישורים</a>
       <a href="#guides" data-area="guides">מדריכים</a>
     </nav>
     <button class="edit-link" id="editToggle" hidden>מצב עריכה</button>
@@ -691,9 +701,10 @@ const VIEWS = {
   home:{area:"home"}, shokdim:{area:"home",label:"שוקדים"}, gallery:{area:"home",label:"תמונות"},
   students:{area:"students",label:"לוח שנה"}, placements:{area:"students",label:"שיבוצי כיתות"}, forms:{area:"students",label:"טפסים"},
   staff:{area:"staff",label:"הזמנת מחשבים"}, computers:{area:"staff",label:"הזמנת מחשבים"},
+  links:{area:"links",label:"קישורים חשובים"},
   guides:{area:"guides",label:"מדריכים"}
 };
-const SUB = {home:[], students:["students","placements"], staff:[], guides:[]};
+const SUB = {home:[], students:["students","placements"], staff:[], links:[], guides:[]};
 const tab = ()=>{const h=location.hash.slice(1);return VIEWS[h]?h:"home"};
 window.addEventListener("hashchange",()=>{S.openForm=null;render()});
 /* dropdown menus under the אירועים שכבתיים / צוות tabs */
@@ -1279,6 +1290,27 @@ function placementsView(){
   return h+`</div>`;
 }
 
+function linksView(){
+  /* to add a link: copy one card and change the texts and addresses */
+  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  const android=/Android/i.test(navigator.userAgent);
+  const go=(u,l,ghost)=>`<a class="btn${ghost?" ghost":""}" href="${u}" target="_blank" rel="noopener">${l}</a>`;
+  const SHAHAF_IOS="https://apps.apple.com/il/app/id1368425766", SHAHAF_ANDROID="https://play.google.com/store/apps/details?id=com.shahafsoft.timetableapp";
+  const shahaf = ios ? go(SHAHAF_IOS,"הורדה לאייפון")+go(SHAHAF_ANDROID,"לאנדרואיד",1)
+               : android ? go(SHAHAF_ANDROID,"הורדה לאנדרואיד")+go(SHAHAF_IOS,"לאייפון",1)
+               : go(SHAHAF_IOS,"אייפון")+go(SHAHAF_ANDROID,"אנדרואיד");
+  return `<div class="masthead"><h2>קישורים חשובים</h2><p>המערכות שמשתמשים בהן ביום-יום</p></div><div class="links">
+  <section class="lcard"><h3><span aria-hidden="true">📊</span>משו״ב</h3>
+    <p>ציונים, מבחנים, נוכחות והודעות מהצוות. לתלמידים ולהורים.</p>
+    <div class="lbtns">${go("https://web.mashov.info/students/login","כניסה למשו״ב")}</div></section>
+  <section class="lcard"><h3><span aria-hidden="true">🕘</span>אפליקציית שחף</h3>
+    <p>מערכת השעות של הכיתה, שינויים במערכת ולוח מבחנים.</p>
+    <div class="lbtns">${shahaf}</div></section>
+  <p class="links-help">לא מצליחים להיכנס? <a href="#guides" data-guide="g-login">מדריך כניסה למשו״ב ולשחף</a></p>
+  </div>`;
+}
+/* link from another page straight to an open guide */
+document.addEventListener("click",ev=>{const a=ev.target.closest("[data-guide]");if(!a)return;ev.preventDefault();location.hash="guides";setTimeout(()=>{const el=document.getElementById(a.dataset.guide);if(!el)return;el.open=true;el.scrollIntoView({behavior:"smooth",block:"start"})},60)});
 function guidesView(){
   const MOE_PHONE="https://apps2.education.gov.il/Idm.SelfServices/update-select", MOE_RESET="https://apps2.education.gov.il/EduLogin/selfreset.aspx";
   const btn=(u,l)=>`<div><a class="btn" href="${u}" target="_blank" rel="noopener">${l}</a></div>`;
@@ -1326,7 +1358,7 @@ function render(){
   const note = DATA.sample?`<div class="sample-note"><b>תוכן לדוגמה.</b> השוקדים והעדכונים כאן להמחשה עד שיוזן התוכן האמיתי. האירועים בלוח השנה אמיתיים.</div>`:"";
   closeMenu();
   const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${t==="students"?(S.type==="staff"?"צוות · כל האירועים":S.grade==="all"?"לוח כללי":"שכבת "+esc(GL[S.grade]||"")):VIEWS[t].label}</b></p>`:"";
-  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,guides:guidesView}[t]();
+  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,links:linksView,guides:guidesView}[t]();
   $("#view").innerHTML = `<div class="view">${note}${body}</div>`;
   $("#editbar").innerHTML = S.editing?`<div class="edit-bar"><b>מצב עריכה</b><span>${S.dirty?"יש שינויים שעוד לא פורסמו":"כל השינויים פורסמו"}</span><span class="spacer"></span>${DATA.sample?`<button class="btn" data-clear-sample>הסרת התוכן לדוגמה</button>`:""}<button class="btn" data-publish ${S.dirty?"":"disabled"}>פרסום השינויים</button><span class="msg" id="pubMsg" role="status" style="color:inherit"></span></div>`:"";
   $("#editToggle").textContent = S.editing?"סיום עריכה":"מצב עריכה";
