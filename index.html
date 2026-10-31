@@ -244,7 +244,7 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .top{background:none;border-bottom:0}
 .hero{background:var(--hero);color:var(--hero-ink);position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 120% at 100% 0%,var(--hero-2),transparent 70%);pointer-events:none}
-.hero-in{position:relative;display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:12px 40px;align-items:center;padding-block:calc(14px + env(safe-area-inset-top,0px)) 4px}
+.hero-in{position:relative;display:grid;grid-template-columns:minmax(0,1fr);justify-items:start;gap:12px 40px;align-items:center;padding-block:calc(14px + env(safe-area-inset-top,0px)) 4px}
 .brand{display:flex;align-items:center;gap:18px;padding:0}
 .emblem{width:76px;height:76px;border:3px solid rgba(255,255,255,.85);box-shadow:0 0 0 5px rgba(255,255,255,.08)}
 .brand-text{display:grid;gap:2px}
@@ -969,18 +969,19 @@ function openViewer(id,i){
 /* ---------- "my week" on the home page (grade remembered on this device) ---------- */
 function myWeek(){
   const g=store.get("myGrade",null);
-  if(!g||!GL[g]||g==="all"||g==="staff"){
+  if(!g||!GL[g]||g==="all"){
     return `<section class="myweek"><div class="mw-head"><h2>השבוע שלי</h2><span class="legend">בחרו את השכבה שלכם, והאתר יזכור אותה</span></div>
-      <div class="mw-pick">${DATA.grades.map(x=>`<button class="chip" data-my-grade="${x}">${esc(GL[x])}</button>`).join("")}</div></section>`;
+      <div class="mw-pick">${[...DATA.grades,"staff"].map(x=>`<button class="chip" data-my-grade="${x}">${esc(GL[x])}</button>`).join("")}</div></section>`;
   }
   const end=new Date(today); end.setDate(today.getDate()+7);
-  const evs=sorted().filter(e=>!isStaff(e)&&(e.grades.includes(g)||e.grades.includes("all"))&&pd(e.end||e.date)>=today&&pd(e.date)<=end);
+  const staff=g==="staff";
+  const evs=sorted().filter(e=>(staff?isStaff(e):!isStaff(e)&&(e.grades.includes(g)||e.grades.includes("all")))&&pd(e.end||e.date)>=today&&pd(e.date)<=end);
   const days={}; evs.forEach(e=>{const s=pd(e.date)<today?iso(today):e.date;(days[s]??=[]).push(e)});
   const dayName=k=>{const d=pd(k),diff=Math.round((d-today)/864e5); const w=`יום ${WD[d.getDay()]}`; return diff===0?"היום":diff===1?"מחר":`${w} ${d.getDate()}.${d.getMonth()+1}`};
   const exams=evs.filter(e=>e.type==="exam").length;
-  return `<section class="myweek"><div class="mw-head"><h2>השבוע שלי</h2><span class="mw-grade">שכבת ${esc(GL[g])}</span><button class="link-btn" data-my-change>החלפת שכבה</button><span class="spacer"></span>${exams?`<span class="mw-count">${exams===1?"מבחן אחד":exams+" מבחנים"} השבוע</span>`:""}</div>
-    ${evs.length?`<div class="mw-days">${Object.keys(days).sort().map(k=>`<div class="mw-day ${k===iso(today)?"is-today":""}"><div class="mw-dn">${dayName(k)}</div><div class="mw-list">${days[k].map(e=>`<div class="mw-ev t-${cls(e)}"><span class="bar"></span><span class="mw-t">${esc(e.title)}${e.end?`<small>עד ${fmt(e.end)}</small>`:""}</span>${planBtn(e)}</div>`).join("")}</div></div>`).join("")}</div>`:`<p class="empty">אין מבחנים או אירועים בשבוע הקרוב. שבוע רגוע!</p>`}
-    <div><button class="btn ghost" data-go-cal>ללוח השנה של השכבה ←</button></div></section>`;
+  return `<section class="myweek"><div class="mw-head"><h2>השבוע שלי</h2><span class="mw-grade">${staff?"צוות":"שכבת "+esc(GL[g])}</span><button class="link-btn" data-my-change>${staff?"החלפה":"החלפת שכבה"}</button><span class="spacer"></span>${exams?`<span class="mw-count">${exams===1?"מבחן אחד":exams+" מבחנים"} השבוע</span>`:""}</div>
+    ${evs.length?`<div class="mw-days">${Object.keys(days).sort().map(k=>`<div class="mw-day ${k===iso(today)?"is-today":""}"><div class="mw-dn">${dayName(k)}</div><div class="mw-list">${days[k].map(e=>`<div class="mw-ev t-${cls(e)}"><span class="bar"></span><span class="mw-t">${esc(e.title)}${e.end?`<small>עד ${fmt(e.end)}</small>`:""}</span>${planBtn(e)}</div>`).join("")}</div></div>`).join("")}</div>`:`<p class="empty">${staff?"אין ישיבות, השתלמויות או מופ״ד בשבוע הקרוב.":"אין מבחנים או אירועים בשבוע הקרוב. שבוע רגוע!"}</p>`}
+    <div><button class="btn ghost" data-go-cal>${staff?"ללוח הצוות המלא ←":"ללוח השנה של השכבה ←"}</button></div></section>`;
 }
 
 /* ---------- running photos in the updates column ---------- */
@@ -1087,9 +1088,9 @@ document.addEventListener("click",async ev=>{
   else if(d.plan){ev.stopPropagation();openPlanner(d.plan)}
   else if(d.editPost){S.editPost=d.editPost;render()}
   else if("cancelEdit" in d){S.editPost=null;render()}
-  else if(d.myGrade){store.set("myGrade",d.myGrade);S.grade=d.myGrade;store.set("grade",S.grade);render()}
+  else if(d.myGrade){store.set("myGrade",d.myGrade);if(d.myGrade!=="staff"){S.grade=d.myGrade;store.set("grade",S.grade)}render()}
   else if("myChange" in d){store.set("myGrade",null);render()}
-  else if("goCal" in d){const g=store.get("myGrade",null);if(g){S.grade=g;store.set("grade",g)}location.hash="students"}
+  else if("goCal" in d){const g=store.get("myGrade",null);if(g==="staff"){S.grade="all";S.type="staff"}else if(g){S.grade=g;if(S.type==="staff")S.type="all"}store.set("grade",S.grade);store.set("type",S.type);location.hash="students"}
   else if(d.issue){openViewer(d.issue,Number(d.page))}
   else if(d.pdf){const p=DATA.posts.find(x=>x.id===d.pdf), m=document.getElementById("pdfMsg-"+d.pdf);
     try{const blob=await fetch(p.pdf).then(r=>{if(!r.ok)throw 0;return r.blob()});
