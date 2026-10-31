@@ -361,6 +361,23 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .cell.today .num{color:var(--palm)}
 .cell.today .num::after{content:" · היום";margin-inline-start:2px;font-weight:700}
 @media (max-width:640px){.cell.today .num::after{content:""}}
+/* bagrut + matkonet yearly list */
+.bagrut{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:0;margin-top:16px}
+.bagrut summary{cursor:pointer;display:flex;align-items:center;gap:10px;padding:14px 18px;font-weight:800;color:var(--palm);font-size:1.1rem;list-style:none}
+.bagrut summary::-webkit-details-marker{display:none}
+.bagrut summary::before{content:"◂";font-size:.8em;transition:transform .2s}
+.bagrut[open] summary::before{transform:rotate(-90deg)}
+.bagrut .bg-n{margin-inline-start:auto;white-space:nowrap;background:var(--exam-soft);color:var(--exam);border-radius:999px;padding:2px 12px;font-size:.85rem}
+.bg-month{padding:4px 18px 10px}
+.bg-month h4{margin:6px 0;font-size:.9rem;color:var(--muted)}
+.bg-row{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.bg-row.past{opacity:.45}
+.bg-d{font-size:.88rem;color:var(--muted);font-weight:600}
+.bg-t{font-weight:600}
+.bg-k{font-size:.78rem;font-weight:800;border-radius:999px;padding:2px 10px}
+.bg-k.bg{background:var(--exam-soft);color:var(--exam)}
+.bg-k.mk{border:1px solid var(--exam);color:var(--exam)}
+@media (max-width:560px){.bg-row{grid-template-columns:68px minmax(0,1fr) auto;gap:8px}.bg-d{font-size:.8rem;white-space:nowrap}.bg-t{font-size:.92rem}.bagrut summary{font-size:.95rem;padding:12px 14px}.bg-month{padding:2px 14px 8px}}
 /* staff events */
 :root{--staff:#6a48a8;--staff-soft:#ece5f7}
 .t-staff{--c:var(--staff);--cs:var(--staff-soft)}
@@ -739,12 +756,26 @@ function calendarView(){
   </div>
 ${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
   h += S.mode==="list" ? listView(evs) : monthView(evs);
+  h += bagrutList();
   if(S.type==="exam") h += `<section class="focus"><h2>מבחנים קרובים${S.grade!=="all"?" · שכבת "+esc(GL[S.grade]):""}</h2>
     ${exams.length?`<div class="focus-list">${exams.map(e=>{const d=pd(e.date);return `<div class="exam-card ${canPlan(e)?"plannable":""}" ${canPlan(e)?`data-plan="${e.id}" role="button" tabindex="0" title="תכנון למידה למבחן"`:""}><span class="d">יום ${WD[d.getDay()]}, ${fmt(e.date)}</span><span class="t">${esc(e.title)}</span><span class="g">${e.grades.map(x=>GL[x]).join(", ")}</span></div>`}).join("")}</div>`:`<p class="empty">אין מבחנים בשבועיים הקרובים${S.grade==="all"?"":" לשכבה הזו"}.</p>`}
   </section>`;
   if(VIEWS[tab()].area==="students") h += `<section class="sig"><div class="sig-head"><h3>חיפוש בלוח</h3><input id="sigQ" type="search" placeholder="חיפוש אירוע, למשל: טיול, בגרות, חנוכה" value="${esc(S.sigQ||"")}" aria-label="חיפוש אירועים"></div><div id="sigRes"></div></section>`;
   return h;
 }
+/* yearly bagrut + matkonet list for יא / יב, under the calendar */
+function bagrutList(){
+  const g=S.grade; if(S.type==="staff"||(g!=="יא"&&g!=="יב")) return "";
+  const list=sorted().filter(e=>/בגר|מתכונ/.test(e.title)&&(e.grades.includes(g)||e.grades.includes("all")));
+  if(!list.length) return "";
+  const left=list.filter(e=>pd(e.date)>=today).length;
+  const months={}; list.forEach(e=>{(months[e.date.slice(0,7)]??=[]).push(e)});
+  const MN=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+  return `<details class="bagrut" ${store.get("bagOpen",false)?"open":""}><summary><span class="bg-title">לוח בגרויות ומתכונות · שכבת ${esc(GL[g])}</span><span class="bg-n">${left?`${left} לפניכם`:"הסתיימו"}</span></summary>
+    ${Object.keys(months).map(k=>`<div class="bg-month"><h4>${MN[Number(k.slice(5))-1]} ${k.slice(0,4)}</h4>${months[k].map(e=>{const d=pd(e.date),m=/מתכונ/.test(e.title);return `<div class="bg-row ${d<today?"past":""}"><span class="bg-d">${"אבגדהוש"[d.getDay()]}׳ · ${d.getDate()}.${d.getMonth()+1}</span><span class="bg-t">${esc(e.title)}</span><span class="bg-k ${m?"mk":"bg"}">${m?"מתכונת":"בגרות"}</span></div>`}).join("")}</div>`).join("")}
+  </details>`;
+}
+document.addEventListener("toggle",ev=>{if(ev.target.classList&&ev.target.classList.contains("bagrut"))store.set("bagOpen",ev.target.open)},true);
 function listView(evs){
   const up = evs.filter(e=>pd(e.date)>=today), past = evs.filter(e=>pd(e.date)<today);
   const show = S.showPast? past.concat(up): up;
