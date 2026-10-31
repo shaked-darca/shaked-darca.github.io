@@ -123,7 +123,6 @@ main{padding-block:22px 90px}
 .grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
 .dow{font-size:.75rem;color:var(--muted);text-align:center;font-weight:700;padding:4px 0}
 .cell{min-height:86px;border-radius:6px;background:var(--bg);padding:4px;display:flex;flex-direction:column;gap:2px;border:1px solid transparent;cursor:pointer;text-align:start}
-.cell.out{opacity:.35}
 .cell.today{border-color:var(--palm)}
 .cell.sel{border-color:var(--water);background:var(--water-soft)}
 .cell .num{font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums}
@@ -346,7 +345,17 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .month{padding:10px}
 .month-head h2{font-size:1.15rem}
 .cell{min-height:84px;background:var(--surface);border:1px solid var(--line)}
-.cell.out{opacity:.4}
+.cell.alt{background:color-mix(in srgb,var(--water-soft) 45%,var(--surface))}
+.cell.past{opacity:.5}
+.cell.m1{border-inline-end:3px solid var(--water)}
+.cell .mname{font-weight:800;color:var(--water);margin-inline-start:4px;font-size:.72rem}
+.grid.slide-next{animation:calNext .22s ease-out}
+.grid.slide-prev{animation:calPrev .22s ease-out}
+@keyframes calNext{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes calPrev{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.grid.slide-next,.grid.slide-prev{animation:none}}
+.grid[data-swipe]{touch-action:pan-y}
+@media (max-width:640px){.cell .mname{display:block;margin:0;font-size:.6rem}}
 .cell.sel{border-color:var(--water);box-shadow:inset 0 0 0 1px var(--water);background:var(--surface)}
 .grid{gap:4px}
 .navbar .wrap{display:flex;align-items:center;gap:8px}
@@ -641,7 +650,7 @@ const uid = ()=>Math.random().toString(36).slice(2,9);
 
 const S = {
   grade: store.get("grade","all"), type: store.get("type","all"), mode: store.get("mode2","month"),
-  monthStart: new Date(today.getFullYear(),today.getMonth(),1), selDay:(window.matchMedia&&matchMedia("(max-width:640px)").matches)?iso(today):null, showPast:false,
+  calStart: weekStart(today), calRows: 5, selDay:(window.matchMedia&&matchMedia("(max-width:640px)").matches)?iso(today):null, showPast:false,
   editing:false, canEdit:false, dirty:false, openForm:null, showSubs:false,
   cap:{}
 };
@@ -853,20 +862,48 @@ function listView(evs){
   return top+(past.length?`<div><button class="btn ghost" data-toggle-past>${S.showPast?"הסתרת אירועים שעברו":"הצגת אירועים שעברו ("+past.length+")"}</button></div>`:"")+
     Object.keys(groups).map(k=>`<section class="week"><h3>${weekLabel(k)}</h3>${groups[k].map(evRow).join("")}</section>`).join("");
 }
+/* rolling calendar (like the iPhone): starts from the current week and runs across month boundaries */
+function weekStart(d){const s=new Date(d);s.setHours(0,0,0,0);s.setDate(s.getDate()-s.getDay());return s}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+/* the month that fills most of the view */
+function calFocus(){const c={};for(let i=0;i<S.calRows*7;i++){const d=addDays(S.calStart,i);const k=d.getFullYear()*12+d.getMonth();c[k]=(c[k]||0)+1}
+  return Number(Object.keys(c).sort((a,b)=>c[b]-c[a])[0])}
+/* jump to a whole month: from the week of its 1st, enough rows to show all of it */
+function calGoMonth(k){const first=new Date(Math.floor(k/12),k%12,1), last=new Date(Math.floor(k/12),k%12+1,0);
+  S.calStart=weekStart(first); S.calRows=Math.round((weekStart(last)-S.calStart)/864e5/7)+1}
+function calGoToday(){S.calStart=weekStart(today);S.calRows=5}
+function calTitle(){const c={};for(let i=0;i<S.calRows*7;i++){const d=addDays(S.calStart,i);const k=d.getFullYear()*12+d.getMonth();c[k]=(c[k]||0)+1}
+  const ks=Object.keys(c).map(Number).filter(k=>c[k]>=7).sort((a,b)=>a-b), y=k=>Math.floor(k/12), n=k=>MN[k%12];
+  if(ks.length===1) return `${n(ks[0])} ${y(ks[0])}`;
+  const a=ks[0], b=ks[ks.length-1];
+  return y(a)===y(b)?`${n(a)} – ${n(b)} ${y(b)}`:`${n(a)} ${y(a)} – ${n(b)} ${y(b)}`;
+}
+function calNav(dir){const f=calFocus();calGoMonth(f+dir);S.selDay=null;S.calSlide=dir;render()}
 function monthView(evs){
-  const m=S.monthStart, start=new Date(m); start.setDate(1-m.getDay());
+  const start=S.calStart, n=S.calRows*7, focus=calFocus();
   const byDay={}; evs.forEach(e=>{const d=pd(e.date), last=pd(e.end||e.date); for(let x=new Date(d); x<=last; x.setDate(x.getDate()+1)) (byDay[iso(x)]??=[]).push(e)});
   let cells="";
-  for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const k=iso(d);const list=byDay[k]||[];
-    if(i>=35&&d.getMonth()!==m.getMonth()) break;
-    cells+=`<button class="cell ${d.getMonth()!==m.getMonth()?"out":""} ${+d===+today?"today":""} ${S.selDay===k?"sel":""}" data-day="${k}" aria-label="${d.getDate()} ב${MN[d.getMonth()]}, ${list.length} אירועים">
-      <span class="num">${d.getDate()}</span>${list.slice(0,3).map(e=>`<span class="mini t-${cls(e)}">${esc(e.title)}</span>`).join("")}${list.length>3?`<span class="mini t-event">+${list.length-3}</span>`:""}
+  for(let i=0;i<n;i++){const d=addDays(start,i);const k=iso(d);const list=byDay[k]||[];
+    const alt=(d.getMonth()%2)?"alt":"", first=d.getDate()===1;
+    cells+=`<button class="cell ${alt} ${d<today?"past":""} ${+d===+today?"today":""} ${S.selDay===k?"sel":""} ${first?"m1":""}" data-day="${k}" aria-label="${d.getDate()} ב${MN[d.getMonth()]}, ${list.length} אירועים">
+      <span class="num">${d.getDate()}${first?`<span class="mname">${MN[d.getMonth()]}</span>`:""}</span>${list.slice(0,3).map(e=>`<span class="mini t-${cls(e)}">${esc(e.title)}</span>`).join("")}${list.length>3?`<span class="mini t-event">+${list.length-3}</span>`:""}
       <span class="dots">${list.map(e=>`<span class="dot t-${cls(e)}"></span>`).join("")}</span></button>`;}
   const det = S.selDay?(byDay[S.selDay]||[]):null;
-  return `<section class="month"><div class="month-head"><button class="mnav" data-month="-1">→ ${MN[(m.getMonth()+11)%12]}</button><div class="mh-mid"><h2>${MN[m.getMonth()]} ${m.getFullYear()}</h2><div class="mh-sub">${(m.getMonth()!==today.getMonth()||m.getFullYear()!==today.getFullYear())?`<button class="mnav today-btn" data-month-today>היום</button>`:""}${calLinks()}</div></div><button class="mnav" data-month="1">${MN[(m.getMonth()+1)%12]} ←</button></div>
-    <div class="grid">${WD.map(w=>`<div class="dow">${w}</div>`).join("")}${cells}</div>
-    ${det?`<div class="day-detail"><h3 style="font-size:1rem">${fmt(S.selDay)}</h3>${det.length?`<div class="drows">${det.map(dayRow).join("")}</div>`:`<p class="empty">אין אירועים ביום הזה.</p>`}</div>`:""}</section>`;
+  let next="";
+  if(det&&!det.length){const after=evs.filter(e=>e.date>S.selDay).slice(0,3);
+    if(after.length) next=`<h3 style="font-size:.95rem;margin-top:4px">הבא בלוח</h3><div class="drows">${after.map(e=>dayRow(Object.assign({},e,{note:fmt(e.date)+(e.note?"\n"+e.note:"")}))).join("")}</div>`;}
+  const atToday=+S.calStart===+weekStart(today);
+  const slide=S.calSlide?(S.calSlide>0?"slide-next":"slide-prev"):""; S.calSlide=0;
+  return `<section class="month"><div class="month-head"><button class="mnav" data-month="-1">→ ${MN[(focus+11)%12]}</button><div class="mh-mid"><h2>${calTitle()}</h2><div class="mh-sub">${atToday?"":`<button class="mnav today-btn" data-month-today>היום</button>`}${calLinks()}</div></div><button class="mnav" data-month="1">${MN[(focus+1)%12]} ←</button></div>
+    <div class="grid ${slide}" data-swipe>${WD.map(w=>`<div class="dow">${w}</div>`).join("")}${cells}</div>
+    ${det?`<div class="day-detail"><h3 style="font-size:1rem">${fmt(S.selDay)}</h3>${det.length?`<div class="drows">${det.map(dayRow).join("")}</div>`:`<p class="empty">אין אירועים ביום הזה.</p>${next}`}</div>`:""}</section>`;
 }
+/* swipe sideways on the calendar to move between months (RTL: drag right = next) */
+(function(){let x0=null,y0=0;
+  document.addEventListener("touchstart",e=>{x0=e.target.closest("[data-swipe]")?e.touches[0].clientX:null;y0=e.touches[0].clientY},{passive:true});
+  document.addEventListener("touchend",e=>{if(x0==null) return;const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;x0=null;
+    if(Math.abs(dx)>50&&Math.abs(dx)>1.5*Math.abs(dy)) calNav(dx>0?1:-1)},{passive:true});
+})();
 /* personal calendars */
 const ymd = s=>s.replace(/-/g,"");
 const nextDay = s=>{const d=pd(s);d.setDate(d.getDate()+1);return iso(d)};
@@ -1268,8 +1305,8 @@ document.addEventListener("click",async ev=>{
   if(d.grade){S.grade=d.grade;store.set("grade",S.grade);render()}
   else if(d.type){S.type=d.type;store.set("type",S.type);render()}
   else if(d.mode){S.mode=d.mode;store.set("mode2",S.mode);render()}
-  else if(d.month){S.monthStart=new Date(S.monthStart.getFullYear(),S.monthStart.getMonth()+Number(d.month),1);S.selDay=null;render()}
-  else if("monthToday" in d){S.monthStart=new Date(today.getFullYear(),today.getMonth(),1);S.selDay=null;render()}
+  else if(d.month){calNav(Number(d.month))}
+  else if("monthToday" in d){calGoToday();S.selDay=matchMedia("(max-width:640px)").matches?iso(today):null;render()}
   else if(d.day){S.selDay=S.selDay===d.day?null:d.day;render()}
   else if("togglePast" in d){S.showPast=!S.showPast;render()}
   else if(d.delEv){DATA.events=DATA.events.filter(e=>e.id!==d.delEv);changed()}
