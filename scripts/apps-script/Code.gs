@@ -49,7 +49,7 @@ const G9 = ["ט", "י", "יא", "יב"];
 const CACHE_KEY = "events-v1";
 const CACHE_SECONDS = 15 * 60;
 
-/* טבלת הזמנת המחשבים של אחראי המחשבים (הסקריפט רק קורא ממנה, לא כותב) */
+/* טבלת הזמנת המחשבים של אחראי המחשבים (הסקריפט קורא ממנה, וכותב רק הזמנות שנעשו באתר) */
 const COMPUTERS_SHEET = "18QQlfovhC1HoT6OkuY-CgiuVP2Ex7_akWVL92ap6HRM";
 const COMPUTERS_DAYS = ["יום א'", "יום ב'", "יום ג'", "יום ד'", "יום ה'"];
 const COMPUTERS_KEY = "computers-v1";
@@ -93,7 +93,7 @@ function setup() {
     Logger.log("טבלת המחשבים: " + c.days.length + " ימים, " +
       c.days.reduce((n, d) => n + d.lessons.reduce((m, l) => m + l.bookings.length, 0), 0) + " הזמנות");
   } catch (err) {
-    Logger.log("אין גישה לטבלת המחשבים. צריך לשתף אותה עם החשבון הזה (צפייה מספיקה). " + err);
+    Logger.log("אין גישה לטבלת המחשבים. צריך לשתף אותה עם החשבון הזה, עם הרשאת עריכה. " + err);
   }
 }
 
