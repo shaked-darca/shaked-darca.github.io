@@ -648,11 +648,14 @@ const TYPES = {exam:"מבחן",event:"אירוע",trip:"טיול / סיור",hol
 /* תגיות חברתי: נקבעות אוטומטית לפי שם האירוע, כך שגם אירוע חדש ביומן מקבל תגית */
 const SOC = [["talks","שיחות וימי עיון"],["army","צבא ושירות"],["sport","ספורט"],["parents","הורים"],["trip","טיולים וסיורים"],["general","כללי"]];
 const SOC_L = Object.fromEntries(SOC);
+/* צבא ושירות: רק לשכבות י״א וי״ב */
+const ARMY_G = ["יא","יב"];
+function socList(){ return SOC.filter(([k])=>k!=="army"||ARMY_G.includes(S.grade)); }
 function socTag(e){ const t=e.title;
   if(/הורים|תעודות|ערב סיכום|ערב סיום|ערב מהו"ת/.test(t)) return "parents";
   if(e.type==="trip"||/סיור|טיול|מסע|קמפוס|סמינר|שבוע נגב|נטיעות|פולין/.test(t)) return "trip";
   if(/כדורסל|נבחרת|מירוצ|טריאתלון/.test(t)) return "sport";
-  if(/צו( |$)|לשכת גיוס|סיירות|מד"?א|מחלץ|חוסן קרבי/.test(t)) return "army";
+  if(/צו( |$)|לשכת גיוס|סיירות|מד"?א|מחלץ|חוסן קרבי/.test(t)) return e.grades.every(g=>ARMY_G.includes(g))?"army":"general";
   if(/ראיה|חיסונ/.test(t)) return "general";
   if(/שיחה|שיחת|יום עיון|יום זהות|יום שיא|דרך ארץ|קפה דילמה|חשיפה|הכוון|פאנל|נושא|יומן קריאה|שבוע השפה|ספריה|תכנית|הכנה/.test(t)) return "talks";
   return "general"; }
@@ -845,6 +848,7 @@ function weekLabel(k){
   return `${s.getDate()}.${s.getMonth()+1} – ${e.getDate()}.${e.getMonth()+1}`;
 }
 function calendarView(){
+  if(S.soc==="army"&&!ARMY_G.includes(S.grade)) S.soc="all";
   const g = ["all",...DATA.grades];
   if(!g.includes(S.grade)) S.grade="all";
   const evs = sorted().filter(visible);
@@ -854,7 +858,7 @@ function calendarView(){
     <div class="row" role="group" aria-label="בחירת שכבה"><span class="label">שכבה</span>${g.map(x=>`<button class="chip" data-grade="${x}" aria-pressed="${S.grade===x}">${x==="all"?"לוח כללי":esc(GL[x])}</button>`).join("")}</div>
     <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","חברתי"],["staff","צוות"]].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
     <span class="spacer"></span><div class="seg" role="group" aria-label="תצוגה">${[["month","לוח חודשי"],["list","רשימת אירועים"]].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${S.mode===k}">${l}</button>`).join("")}</div></div>
-    ${S.type==="events"?`<div class="subtags" role="group" aria-label="סוג אירוע חברתי">${[["all","הכל"]].concat(SOC).map(([k,l])=>`<button class="chip" data-soc="${k}" aria-pressed="${S.soc===k}">${l}</button>`).join("")}</div>`:""}
+    ${S.type==="events"?`<div class="subtags" role="group" aria-label="סוג אירוע חברתי">${[["all","הכל"]].concat(socList()).map(([k,l])=>`<button class="chip" data-soc="${k}" aria-pressed="${S.soc===k}">${l}</button>`).join("")}</div>`:""}
   </div>
 ${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
   h += S.mode==="list" ? listView(evs) : monthView(evs);
