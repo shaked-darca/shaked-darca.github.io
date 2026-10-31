@@ -244,7 +244,7 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .top{background:none;border-bottom:0}
 .hero{background:var(--hero);color:var(--hero-ink);position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 120% at 100% 0%,var(--hero-2),transparent 70%);pointer-events:none}
-.hero-in{position:relative;display:grid;grid-template-columns:minmax(0,1fr);justify-items:start;gap:12px 40px;align-items:center;padding-block:calc(14px + env(safe-area-inset-top,0px)) 4px}
+.hero-in{position:relative;display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:12px 40px;align-items:center;padding-block:calc(14px + env(safe-area-inset-top,0px)) 4px}
 .brand{display:flex;align-items:center;gap:18px;padding:0}
 .emblem{width:76px;height:76px;border:3px solid rgba(255,255,255,.85);box-shadow:0 0 0 5px rgba(255,255,255,.08)}
 .brand-text{display:grid;gap:2px}
@@ -252,7 +252,7 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .brand h1{font-family:"Noto Serif Hebrew","Frank Ruhl Libre",serif;font-weight:700;font-size:clamp(1.8rem,4.6vw,2.5rem);line-height:1.05;color:var(--hero-ink);letter-spacing:-.01em}
 .brand h1 span{font-family:var(--f-body);font-weight:400;color:var(--hero-mute);font-size:.62em;margin-inline-start:6px}
 .motto{font-family:var(--f-hand);color:var(--hero-water);font-size:clamp(1.45rem,3.4vw,1.85rem);line-height:1;margin-top:2px}
-.vision{margin:0;justify-self:start;text-align:start;max-width:40ch;display:grid;gap:3px;padding-inline-start:16px;border-inline-start:1px solid var(--hero-line);position:relative}
+.vision{margin:0;justify-self:end;text-align:start;max-width:40ch;display:grid;gap:3px;padding-inline-start:16px;border-inline-start:1px solid var(--hero-line);position:relative}
 .vision-label{font-size:.78rem;letter-spacing:.12em;color:var(--hero-mute);font-weight:700}
 .vision blockquote{margin:0;font-family:var(--f-body);font-weight:600;font-size:clamp(.98rem,1.7vw,1.12rem);line-height:1.45;color:var(--hero-ink);text-wrap:balance}
 .vision blockquote::before{content:"”"}.vision blockquote::after{content:"“"}
@@ -261,7 +261,7 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .waves{display:block;width:100%;height:16px;position:relative}
 .navbar{background:var(--bg-nav);border-bottom:1px solid var(--line)}
 .navbar nav.tabs a{padding:12px 16px;font-size:1.02rem}
-@media (max-width:700px){.hero-in{grid-template-columns:minmax(0,1fr)}.vision{justify-self:start}.vision-label{display:none}}
+@media (max-width:700px){.hero-in{grid-template-columns:minmax(0,1fr)}.vision{justify-self:end;text-align:end;border-inline-start:0;padding-inline-start:0;border-inline-end:1px solid var(--hero-line);padding-inline-end:14px}.vision-label{display:none}}
 @media (max-width:560px){.emblem{width:60px;height:60px}.eyebrow{display:none}}
 
 /* ===== שוקדים issue ===== */
