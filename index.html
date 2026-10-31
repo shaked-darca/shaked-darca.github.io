@@ -512,6 +512,21 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .dropmenu a:hover,.dropmenu a:focus-visible{background:var(--sunk)}
 .dropmenu a[aria-current="page"]{background:var(--palm-soft);color:var(--palm)}
 .dropmenu a[aria-current="page"]::after{content:" ✓"}
+/* guides */
+.guide{max-width:760px}
+.guide .lead{margin:0;color:var(--muted)}
+.guide .opt{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
+.guide .opt:first-of-type{border-top:0;padding-top:0}
+.guide h4{font-size:1.05rem;margin:0}
+.guide p{margin:0}
+.guide ol.steps{margin:0;padding-inline-start:0;list-style:none;counter-reset:st;display:grid;gap:8px}
+.guide ol.steps li{counter-increment:st;position:relative;padding-inline-start:36px;min-height:26px;line-height:1.6}
+.guide ol.steps li::before{content:counter(st);position:absolute;inset-inline-start:0;top:1px;width:26px;height:26px;border-radius:50%;background:var(--palm-soft);color:var(--palm);font-weight:700;display:grid;place-items:center;font-size:.9rem}
+.guide code{direction:ltr;unicode-bidi:isolate;display:inline-block;background:var(--sunk);border-radius:6px;padding:1px 7px;font-weight:700}
+.guide .tip{background:var(--water-soft);border-radius:8px;padding:10px 14px}
+@media (max-width:480px){.navbar nav.tabs a{padding:12px 8px;font-size:.95rem}}
+.toc{display:flex;flex-wrap:wrap;gap:8px}
+.toc a{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;color:var(--ink);background:var(--surface)}
 .crumb{margin:0 0 -8px;font-size:.85rem;line-height:1.3;color:var(--muted);font-weight:600}
 @media (max-width:640px){.crumb{margin-bottom:-4px;font-size:.8rem}}
 .crumb b{color:var(--ink)}
@@ -541,6 +556,7 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
       <a href="#home" data-area="home">בית</a>
       <a href="#students" data-area="students">אירועים שכבתיים</a>
       <a href="#staff" data-area="staff">צוות</a>
+      <a href="#guides" data-area="guides">מדריכים</a>
     </nav>
     <button class="edit-link" id="editToggle" hidden>מצב עריכה</button>
   </div></div>
@@ -591,9 +607,10 @@ root.appendChild(document.getElementById("shell").content.cloneNode(true));
 const VIEWS = {
   home:{area:"home"}, shokdim:{area:"home",label:"שוקדים"}, gallery:{area:"home",label:"תמונות"},
   students:{area:"students",label:"לוח שנה"}, placements:{area:"students",label:"שיבוצי כיתות"}, forms:{area:"students",label:"טפסים"},
-  staff:{area:"staff",label:"הזמנת מחשבים"}, computers:{area:"staff",label:"הזמנת מחשבים"}
+  staff:{area:"staff",label:"הזמנת מחשבים"}, computers:{area:"staff",label:"הזמנת מחשבים"},
+  guides:{area:"guides",label:"מדריכים"}
 };
-const SUB = {home:[], students:["students","placements"], staff:[]};
+const SUB = {home:[], students:["students","placements"], staff:[], guides:[]};
 const tab = ()=>{const h=location.hash.slice(1);return VIEWS[h]?h:"home"};
 window.addEventListener("hashchange",()=>{S.openForm=null;render()});
 /* dropdown menus under the אירועים שכבתיים / צוות tabs */
@@ -639,6 +656,7 @@ menu.addEventListener("keydown",ev=>{
 });
 document.addEventListener("click",ev=>{ if(!ev.target.closest("#tabMenu, nav.tabs a[aria-haspopup]")) closeMenu(); });
 document.addEventListener("keydown",ev=>{ if(ev.key==="Escape") closeMenu(); });
+document.addEventListener("click",ev=>{ const j=ev.target.closest("[data-jump]"); if(!j) return; ev.preventDefault(); const el=document.getElementById(j.dataset.jump); if(el) el.scrollIntoView({behavior:"smooth",block:"start"}); });
 window.addEventListener("resize",closeMenu);
 document.querySelector("nav.tabs").addEventListener("scroll",closeMenu);
 
@@ -1074,6 +1092,47 @@ function placementsView(){
   return h+`</div>`;
 }
 
+function guidesView(){
+  const MOE_PHONE="https://apps2.education.gov.il/Idm.SelfServices/update-select", MOE_RESET="https://apps2.education.gov.il/EduLogin/selfreset.aspx";
+  const btn=(u,l)=>`<div><a class="btn" href="${u}" target="_blank" rel="noopener">${l}</a></div>`;
+  return `<div class="masthead"><h2>מדריכים</h2><p>הסברים קצרים, צעד אחר צעד</p></div>
+  <nav class="toc" aria-label="מדריכים בעמוד"><a href="#g-login" data-jump="g-login">כניסה למשוב, שחף, מייל וקלאסרום</a><a href="#g-mail" data-jump="g-mail">כניסה למייל ההתיישבותי</a><a href="#g-reset" data-jump="g-reset">שם משתמש וסיסמה</a></nav>
+
+  <section class="place guide" id="g-login"><h3>כניסה למשוב, שחף, המייל ההתיישבותי וקלאסרום</h3>
+    <p class="lead">הכניסה תמיד נעשית דרך <b>הזדהות משרד החינוך</b>. יש שתי דרכים להתחבר. מורים והורים – אפשר לעזור בזה לתלמידים שמתקשים.</p>
+    <div class="opt"><h4>📲 דרך א׳: תעודת זהות וטלפון</h4>
+      <p>מקלידים תעודת זהות ומקבלים קוד לטלפון.</p>
+      <p class="tip">הקוד מגיע לטלפון של ההורים? צריך לעדכן במשרד החינוך את מספר הטלפון שלכם. רלוונטי בעיקר לתלמידי ט׳ ומעלה, שמותר להם טלפון בבית הספר.</p>
+      ${btn(MOE_PHONE,"עדכון מספר הטלפון")}</div>
+    <div class="opt"><h4>🔑 דרך ב׳: שם משתמש וסיסמה</h4>
+      <p>מהירה יותר – בלי לחכות לקוד ב-SMS. כדאי במיוחד במחשב אישי, שבו הדפדפן יכול לזכור את הפרטים.</p>
+      <p class="tip">לפני כן ודאו שמספר הטלפון שלכם מעודכן, אחרת שם המשתמש יישלח שוב להורים.</p>
+      <p>איך מקבלים את הפרטים – במדריך <a href="#g-reset" data-jump="g-reset">שם משתמש וסיסמה</a> למטה.</p></div>
+  </section>
+
+  <section class="place guide" id="g-mail"><h3>כניסה למייל ההתיישבותי</h3>
+    <p class="lead">לא להיבהל, צעד אחר צעד. תודה לעידן על ההסבר.</p>
+    <ol class="steps">
+      <li>נכנסים ל-Gmail (בגוגל או באפליקציה).</li>
+      <li>בוחרים <b>הוספת חשבון</b>.</li>
+      <li>מקלידים בדיוק את הכתובת <code>a@hityash.org.il</code> – ומועברים להזדהות משרד החינוך.</li>
+      <li>מקלידים תעודת זהות.</li>
+      <li>מקבלים קוד לטלפון ומקלידים אותו.</li>
+    </ol>
+  </section>
+
+  <section class="place guide" id="g-reset"><h3>שם משתמש וסיסמה במשרד החינוך</h3>
+    <p class="lead">שכחתם או אף פעם לא ידעתם? אין בעיה – מאפסים סיסמה בעצמכם.</p>
+    <ol class="steps">
+      <li>ודאו שמספר הטלפון שלכם מעודכן (<a href="${MOE_PHONE}" target="_blank" rel="noopener">עדכון טלפון</a>).</li>
+      <li>נכנסים לקישור האיפוס ובוחרים סיסמה חדשה – <b>אותה צריך לזכור</b>.</li>
+      <li>מיד בסיום האיפוס שם המשתמש נשלח אליכם ב-SMS.</li>
+    </ol>
+    ${btn(MOE_RESET,"איפוס סיסמה")}
+    <p class="legend">שכחתם שוב? חוזרים לכאן ומאפסים מחדש.</p>
+  </section>`;
+}
+
 /* ---------- render ---------- */
 function render(){
   const t=tab(), area=VIEWS[t].area;
@@ -1081,7 +1140,7 @@ function render(){
   const note = DATA.sample?`<div class="sample-note"><b>תוכן לדוגמה.</b> השוקדים והעדכונים כאן להמחשה עד שיוזן התוכן האמיתי. האירועים בלוח השנה אמיתיים.</div>`:"";
   closeMenu();
   const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${t==="students"?(S.type==="staff"?"צוות · כל האירועים":S.grade==="all"?"לוח כללי":"שכבת "+esc(GL[S.grade]||"")):VIEWS[t].label}</b></p>`:"";
-  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView}[t]();
+  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,guides:guidesView}[t]();
   $("#view").innerHTML = `<div class="view">${note}${body}</div>`;
   $("#editbar").innerHTML = S.editing?`<div class="edit-bar"><b>מצב עריכה</b><span>${S.dirty?"יש שינויים שעוד לא פורסמו":"כל השינויים פורסמו"}</span><span class="spacer"></span>${DATA.sample?`<button class="btn" data-clear-sample>הסרת התוכן לדוגמה</button>`:""}<button class="btn" data-publish ${S.dirty?"":"disabled"}>פרסום השינויים</button><span class="msg" id="pubMsg" role="status" style="color:inherit"></span></div>`:"";
   $("#editToggle").textContent = S.editing?"סיום עריכה":"מצב עריכה";
