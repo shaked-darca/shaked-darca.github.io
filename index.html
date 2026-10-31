@@ -539,6 +539,8 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 /* running photos */
 .slides{display:grid;gap:8px}
 .slide-stage{position:relative;aspect-ratio:4/3;border-radius:var(--r);overflow:hidden;background:var(--hero)}
+.slide-stage.second{display:none}
+@media (min-width:761px){.slide-stage.second{display:block}}
 .slide{position:absolute;inset:0;margin:0;opacity:0;transition:opacity .7s ease;display:grid;grid-template-rows:minmax(0,1fr) auto}
 .slide.on{opacity:1;z-index:1}
 .slide a{display:block;min-height:0}
@@ -1220,19 +1222,23 @@ const SL={i:0,paused:false,hover:false};
 function slideshow(ph){
   if(SL.i>=ph.length) SL.i=0;
   return `<div class="slides" role="region" aria-roledescription="קרוסלה" aria-label="תמונות מבית הספר">
-    <div class="slide-stage">${ph.map((p,k)=>`<figure class="slide ${k===SL.i?"on":""}" aria-hidden="${k===SL.i?"false":"true"}"><a href="#gallery" tabindex="-1"><img src="${esc(p.url)}" alt="${esc(p.caption||"תמונה מבית הספר")}" ${k?'loading="lazy"':""}></a><figcaption>${esc(p.caption||"")}<small>${fmt(p.date)}</small></figcaption></figure>`).join("")}</div>
+    ${(ph.length>1?[0,1]:[0]).map(off=>{const cur=(SL.i+off)%ph.length;return `<div class="slide-stage${off?" second":""}" data-off="${off}">${ph.map((p,k)=>`<figure class="slide ${k===cur?"on":""}" aria-hidden="${k===cur?"false":"true"}"><a href="#gallery" tabindex="-1"><img src="${esc(p.url)}" alt="${esc(p.caption||"תמונה מבית הספר")}" ${k>1?'loading="lazy"':""}></a><figcaption>${esc(p.caption||"")}<small>${fmt(p.date)}</small></figcaption></figure>`).join("")}</div>`}).join("")}
     ${ph.length>1?`<div class="slide-ctl"><button class="slide-btn" data-slide-pause aria-label="${SL.paused?"הפעלת התמונות":"עצירת התמונות"}">${SL.paused?"▶":"❚❚"}</button><span class="slide-dots">${ph.map((p,k)=>`<button class="slide-dot" data-slide="${k}" aria-label="תמונה ${k+1}" aria-current="${k===SL.i}"></button>`).join("")}</span><span class="slide-n">${SL.i+1} / ${ph.length}</span></div>`:""}
   </div>`;
 }
+/* on a computer two photos show at once, one under the other */
+const slideWide=()=>matchMedia("(min-width:761px)").matches;
 function showSlide(k){
   const box=document.querySelector(".slides"); if(!box) return;
-  const all=box.querySelectorAll(".slide"); if(!all.length) return;
-  SL.i=(k+all.length)%all.length;
-  all.forEach((el,j)=>{el.classList.toggle("on",j===SL.i);el.setAttribute("aria-hidden",j===SL.i?"false":"true")});
+  const stages=box.querySelectorAll(".slide-stage"); if(!stages.length) return;
+  const n=stages[0].querySelectorAll(".slide").length; if(!n) return;
+  SL.i=(k+n)%n;
+  stages.forEach(st=>{const cur=(SL.i+Number(st.dataset.off||0))%n;
+    st.querySelectorAll(".slide").forEach((el,j)=>{el.classList.toggle("on",j===cur);el.setAttribute("aria-hidden",j===cur?"false":"true")})});
   box.querySelectorAll(".slide-dot").forEach((b,j)=>b.setAttribute("aria-current",j===SL.i));
-  const n=box.querySelector(".slide-n"); if(n) n.textContent=`${SL.i+1} / ${all.length}`;
+  const c=box.querySelector(".slide-n"); if(c) c.textContent=`${SL.i+1} / ${n}`;
 }
-setInterval(()=>{ if(SL.paused||SL.hover||document.hidden) return; showSlide(SL.i+1); },4500);
+setInterval(()=>{ if(SL.paused||SL.hover||document.hidden) return; showSlide(SL.i+(slideWide()&&document.querySelectorAll(".slides .slide-stage").length>1?2:1)); },4500);
 document.addEventListener("click",ev=>{
   const dot=ev.target.closest("[data-slide]"); if(dot){showSlide(Number(dot.dataset.slide));return}
   const pb=ev.target.closest("[data-slide-pause]"); if(pb){SL.paused=!SL.paused;pb.textContent=SL.paused?"▶":"❚❚";pb.setAttribute("aria-label",SL.paused?"הפעלת התמונות":"עצירת התמונות")}
