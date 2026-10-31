@@ -225,6 +225,25 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .bkchip.res{background:var(--palm-soft)}
 .bkchip.rec{font-weight:700}
 .bkchip button{border:0;background:none;cursor:pointer;color:var(--exam);font-size:1rem;line-height:1;padding:0 2px}
+/* computer bookings read from the coordinator's sheet */
+.cp{display:grid;gap:12px;max-width:760px}
+.cp-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.cp-week{font-weight:700}
+.cp-days{display:flex;flex-wrap:wrap;gap:6px}
+.cp-days .chip[aria-pressed="true"]{background:var(--water-soft);color:var(--water);border-color:var(--water)}
+.cp-days .chip small{display:block;font-weight:500;font-size:.72rem;color:var(--muted)}
+.cp-list{display:grid;gap:8px}
+.cp-lesson{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start}
+.cp-lesson .ln{font-weight:700;line-height:1.25}
+.cp-lesson .ln small{display:block;font-weight:500;color:var(--muted);font-size:.8rem}
+.cp-lesson.free{background:var(--bg)}
+.cp-items{display:flex;flex-wrap:wrap;gap:6px}
+.cp-item{background:var(--water-soft);border-radius:8px;padding:4px 10px;font-size:.92rem;display:inline-flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.cp-item b{font-weight:700}
+.cp-item.fixed{background:var(--palm-soft)}
+.cp-item .tag{background:var(--surface);color:var(--palm)}
+.cp-meta{font-size:.82rem;color:var(--muted);margin:0}
+@media (max-width:480px){.cp-lesson{grid-template-columns:1fr;gap:6px}.cp-lesson .ln{display:flex;gap:8px;align-items:baseline}}
 .free{border:1px dashed var(--line);background:none;border-radius:6px;padding:3px 10px;color:var(--muted);cursor:pointer;font-size:.85rem}
 .legend{font-size:.85rem;color:var(--muted)}
 
@@ -954,9 +973,39 @@ function bkSubscribe(){
   if(BK.unsub||!S.cap.db) return;
   BK.unsub=S.cap.db.collection("bookings").onSnapshot(q=>{BK.list=q.docs.map(d=>({id:d.id,...d.data()}));BK.loaded=true;if(tab()==="computers")renderBkTable()},()=>{});
 }
+/* computer bookings: read-only view of the coordinator's sheet, served by the Apps Script */
+const CP={data:store.get("computers",null),at:0,day:null,err:false};
+function loadComp(){
+  if(!CAL_URL||Date.now()-CP.at<60000) return;
+  CP.at=Date.now();
+  fetch(CAL_URL+"?what=computers",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(c=>{
+    if(c&&c.ok&&Array.isArray(c.days)){CP.data=c;CP.err=false;store.set("computers",c)} else CP.err=true;
+    if(tab()==="computers"||tab()==="staff") render();
+  }).catch(()=>{CP.err=true;if(tab()==="computers"||tab()==="staff") render()});
+}
+const DAYL=["א׳","ב׳","ג׳","ד׳","ה׳"];
+function shortDate(s){if(!s)return"";const[y,m,d]=s.split("-").map(Number);return d+"."+m}
 function computersView(){
-  return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>למורים</p></div>
-  <section class="place" style="max-width:560px"><h3>טבלת הזמנת מחשבים</h3><p style="margin:0;color:var(--muted)">ההזמנות מתבצעות בינתיים בגיליון המשותף של בית הספר.</p><div><a class="btn" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">פתיחת טבלת ההזמנות</a></div></section>`;
+  loadComp();
+  const link=`<a class="btn" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">להזמנה – פתיחת הטבלה</a>`;
+  const D=CP.data;
+  if(!D||!D.days||!D.days.length){
+    return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>למורים</p></div>
+    <section class="place" style="max-width:560px"><p style="margin:0;color:var(--muted)">${CP.err||!CAL_URL?"לא הצלחנו לטעון כרגע את ההזמנות. אפשר לראות ולהזמין ישירות בטבלה.":"טוען את ההזמנות של השבוע…"}</p><div>${link}</div></section>`;
+  }
+  const days=D.days, todayWd=today.getDay();
+  if(CP.day==null||!days.some(d=>d.wd===CP.day)) CP.day=(days.find(d=>d.wd===todayWd)||days[0]).wd;
+  const day=days.find(d=>d.wd===CP.day);
+  const first=days[0].date, last=days[days.length-1].date;
+  const week=first&&last?`השבוע שבטבלה: ${shortDate(first)} עד ${shortDate(last)}`:"השבוע שבטבלה";
+  const item=b=>`<span class="cp-item ${b.fixed?"fixed":""}"><b>${esc(b.who||"—")}</b>${b.what?`<bdi>${esc(b.what)}</bdi>`:""}${b.fixed?`<span class="tag">קבוע</span>`:""}</span>`;
+  return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>מה כבר הוזמן השבוע, לפי הטבלה של אחראי המחשבים</p></div>
+  <div class="cp">
+    <div class="cp-top"><span class="cp-week">${week}</span>${link}</div>
+    <div class="cp-days" role="group" aria-label="יום">${days.map(d=>`<button class="chip" data-cpday="${d.wd}" aria-pressed="${d.wd===CP.day}">יום ${DAYL[d.wd]||d.name}${d.date?`<small>${shortDate(d.date)}</small>`:""}</button>`).join("")}</div>
+    <div class="cp-list">${day.lessons.length?day.lessons.map(l=>`<div class="cp-lesson ${l.bookings.length?"":"free"}"><div class="ln"><span>${esc(l.name)}</span>${l.time?`<small dir="ltr">${esc(l.time)}</small>`:""}</div><div class="cp-items">${l.bookings.length?l.bookings.map(item).join(""):`<span class="empty">אין הזמנות</span>`}</div></div>`).join(""):`<p class="empty">אין שיעורים ביום הזה בטבלה.</p>`}</div>
+    <p class="cp-meta"><span class="cp-item fixed" style="font-size:.8rem;padding:1px 8px"><span class="tag">קבוע</span></span> הזמנה קבועה (מודגשת בטבלה). ההזמנות עצמן נעשות בטבלה.${D.syncedAt?` · עודכן ${esc(D.syncedAt.slice(11))}`:""}${CP.err?" · אין חיבור, מוצג המידע האחרון שנטען":""}</p>
+  </div>`;
 }
 function renderBkTable(){
   const box=$("#bkTable"); if(!box) return;
@@ -1187,6 +1236,7 @@ document.addEventListener("click",async ev=>{
   else if("ics" in d) downloadIcs();
   else if(d.bkweek){const x=pd(BK.date);x.setDate(x.getDate()+Number(d.bkweek));BK.date=iso(x);render()}
   else if(d.bkday){BK.date=d.bkday;render()}
+  else if(d.cpday){CP.day=Number(d.cpday);render()}
   else if(d.bkdel){try{await S.cap.db.collection("bookings").doc(d.bkdel).delete()}catch(e){}}
   else if(d.bkfree){$("#bkRes").value=d.res;document.querySelectorAll('input[name="bkp"]').forEach(i=>i.checked=i.value===d.bkfree);$("#bkTeacher").focus();$("#bkForm").scrollIntoView({behavior:"smooth",block:"start"})}
   else if(d.plan){ev.stopPropagation();openPlanner(d.plan)}
@@ -1306,7 +1356,7 @@ function loadCal(){
   }).catch(()=>{});
 }
 loadCal();
-document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") loadCal(); });
+document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible"){ loadCal(); if(tab()==="computers"||tab()==="staff"){CP.at=0;loadComp()} } });
 
 render();
 

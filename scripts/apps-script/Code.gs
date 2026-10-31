@@ -11,6 +11,14 @@
  *   3. פריסה (Deploy) ← פריסה חדשה ← סוג: אפליקציית אינטרנט (Web app)
  *        הפעלה בתור: אני   |   מי יכול לגשת: כל אחד (Anyone)
  *   4. להעתיק את כתובת ה-Web app (מסתיימת ב-/exec) ולשלוח אותה.
+ *
+ * עדכון הקוד (כמו עכשיו):
+ *   1. להדביק את כל הקובץ במקום הקוד הישן ולשמור.
+ *   2. להריץ שוב את setup ולאשר את ההרשאה החדשה (קריאת גיליונות).
+ *   3. פריסה ← ניהול פריסות ← עריכה (עיפרון) ← גרסה: "גרסה חדשה" ← פריסה.
+ *      הכתובת נשארת אותה כתובת.
+ *
+ * הסקריפט גם קורא (בלי לשנות) את טבלת הזמנת המחשבים, ומחזיר אותה בכתובת ‎/exec?what=computers
  */
 
 const TZ = "Asia/Jerusalem";
@@ -40,24 +48,49 @@ const G9 = ["ט", "י", "יא", "יב"];
 const CACHE_KEY = "events-v1";
 const CACHE_SECONDS = 15 * 60;
 
+/* טבלת הזמנת המחשבים של אחראי המחשבים (הסקריפט רק קורא ממנה, לא כותב) */
+const COMPUTERS_SHEET = "18QQlfovhC1HoT6OkuY-CgiuVP2Ex7_akWVL92ap6HRM";
+const COMPUTERS_DAYS = ["יום א'", "יום ב'", "יום ג'", "יום ד'", "יום ה'"];
+const COMPUTERS_KEY = "computers-v1";
+const COMPUTERS_SECONDS = 2 * 60;
+
 /* ---------- web app ---------- */
 
-function doGet() {
-  let body = readCache_();
-  if (!body) {
-    try { body = build_(); }
-    catch (err) { body = JSON.stringify({ ok: false, error: String(err && err.message || err) }); }
+// ‎/exec            → אירועי היומנים
+// ‎/exec?what=computers → הזמנות המחשבים של השבוע
+function doGet(e) {
+  const what = e && e.parameter && e.parameter.what;
+  let body;
+  if (what === "computers") {
+    body = CacheService.getScriptCache().get(COMPUTERS_KEY);
+    if (!body) {
+      try { body = buildComputers_(); }
+      catch (err) { body = JSON.stringify({ ok: false, error: String(err && err.message || err) }); }
+    }
+  } else {
+    body = readCache_();
+    if (!body) {
+      try { body = build_(); }
+      catch (err) { body = JSON.stringify({ ok: false, error: String(err && err.message || err) }); }
+    }
   }
   return ContentService.createTextOutput(body).setMimeType(ContentService.MimeType.JSON);
 }
 
-/** להפעיל פעם אחת: מאשר הרשאות, נרשם ליומנים ומתזמן רענון כל 10 דקות. */
+/** להפעיל פעם אחת (ושוב אחרי כל עדכון של הקוד): מאשר הרשאות, נרשם ליומנים ומתזמן רענון כל 10 דקות. */
 function setup() {
   Object.keys(CALS).forEach(k => getCal_(CALS[k]));
   ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === "refresh") ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger("refresh").timeBased().everyMinutes(10).create();
   const out = JSON.parse(build_());
   Logger.log("מוכן: " + out.events.length + " אירועים");
+  try {
+    const c = JSON.parse(buildComputers_());
+    Logger.log("טבלת המחשבים: " + c.days.length + " ימים, " +
+      c.days.reduce((n, d) => n + d.lessons.reduce((m, l) => m + l.bookings.length, 0), 0) + " הזמנות");
+  } catch (err) {
+    Logger.log("אין גישה לטבלת המחשבים. צריך לשתף אותה עם החשבון הזה (צפייה מספיקה). " + err);
+  }
 }
 
 /** רץ אוטומטית כל 10 דקות, כדי שהאתר תמיד יקבל תשובה מהירה ועדכנית. */
@@ -126,6 +159,50 @@ function build_() {
   const body = JSON.stringify({ ok: true, syncedAt: fmt_(now, "yyyy-MM-dd HH:mm"), events });
   writeCache_(body);
   return body;
+}
+
+/* ---------- computer bookings ---------- */
+
+// כל לשונית היא יום. A1 = התאריך, עמודה A = השיעורים, ואחריה זוגות "מורה | מס' מחשבים וציוד".
+// הזמנה מודגשת = הזמנה קבועה.
+function buildComputers_() {
+  const ss = SpreadsheetApp.openById(COMPUTERS_SHEET);
+  const days = [];
+  COMPUTERS_DAYS.forEach((name, wd) => {
+    const sh = ss.getSheetByName(name);
+    if (!sh) return;
+    const rng = sh.getDataRange();
+    const vals = rng.getDisplayValues(), bold = rng.getFontWeights();
+    let start = vals.findIndex(r => String(r[0]).trim() === "שיעורים");
+    if (start < 0) start = vals.findIndex(r => /^שיעור\s*\d/.test(String(r[0]).trim())) - 1;
+    const lessons = [];
+    for (let i = Math.max(start + 1, 1); i < vals.length; i++) {
+      const label = String(vals[i][0] || "").replace(/\s+/g, " ").trim();
+      if (!label) continue;
+      const num = label.match(/שיעור\s*(\d+)/), time = label.match(/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/);
+      const bookings = [];
+      for (let c = 1; c < vals[i].length; c += 2) {
+        const who = String(vals[i][c] || "").trim(), what = String(vals[i][c + 1] || "").trim();
+        if (!who && !what) continue;
+        const fixed = bold[i][c] === "bold" || (c + 1 < bold[i].length && bold[i][c + 1] === "bold");
+        bookings.push({ who, what, fixed });
+      }
+      lessons.push({ name: num ? "שיעור " + num[1] : label, time: time ? time[1] + "–" + time[2] : "", bookings });
+    }
+    days.push({ wd, name, date: isoDate_(vals[0] && vals[0][0]), lessons });
+  });
+  if (!days.length) throw new Error("לא נמצאו לשוניות הימים בטבלת המחשבים");
+  const body = JSON.stringify({ ok: true, syncedAt: fmt_(new Date(), "yyyy-MM-dd HH:mm"), days });
+  if (body.length < 95000) CacheService.getScriptCache().put(COMPUTERS_KEY, body, COMPUTERS_SECONDS);
+  return body;
+}
+
+// "4/11/2026" או "04/11/2026" → "2026-11-04"
+function isoDate_(s) {
+  const m = String(s || "").match(/(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})/);
+  if (!m) return "";
+  const y = m[3].length === 2 ? "20" + m[3] : m[3];
+  return y + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
 }
 
 /* ---------- sorting rules ---------- */
