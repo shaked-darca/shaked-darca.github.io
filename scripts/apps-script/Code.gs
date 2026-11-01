@@ -50,7 +50,7 @@ const CACHE_KEY = "events-v1";
 const CACHE_SECONDS = 15 * 60;
 
 /* טבלת הזמנת המחשבים של אחראי המחשבים (הסקריפט קורא ממנה, וכותב רק הזמנות שנעשו באתר) */
-const COMPUTERS_SHEET = "18QQlfovhC1HoT6OkuY-CgiuVP2Ex7_akWVL92ap6HRM";
+const COMPUTERS_SHEET = "1G5HX87_mRlXUQucfQqe5XjRH5_ISvXze1W08eeYrdRw";
 const COMPUTERS_DAYS = ["יום א'", "יום ב'", "יום ג'", "יום ד'", "יום ה'"];
 const COMPUTERS_KEY = "computers-v1";
 const COMPUTERS_SECONDS = 2 * 60;
