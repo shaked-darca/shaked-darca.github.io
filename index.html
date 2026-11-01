@@ -279,6 +279,8 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .cp-opt b{display:block;font-size:1.05rem}
 .cp-opt small{display:block;color:var(--muted);font-size:.85rem;margin-top:2px}
 .cp-opt:has(input:checked){border-color:var(--water);background:var(--water-soft)}
+.cp-item button.ed{color:var(--water);font-size:.8rem;font-weight:700;text-decoration:underline}
+.cp-fixed{margin:2px 0}
 .cp-note{margin:0;background:#f4e9d8;border-radius:8px;padding:10px 12px;font-weight:600}
 @media (max-width:480px){.cp-kind{grid-template-columns:1fr}}
 .cp-item.mine{outline:2px solid var(--water);outline-offset:-2px}
@@ -1105,7 +1107,7 @@ function bkSubscribe(){
   BK.unsub=S.cap.db.collection("bookings").onSnapshot(q=>{BK.list=q.docs.map(d=>({id:d.id,...d.data()}));BK.loaded=true;if(tab()==="computers")renderBkTable()},()=>{});
 }
 /* computer bookings: read-only view of the coordinator's sheet, served by the Apps Script */
-const CP={data:store.get("computers",null),at:0,day:null,err:false,form:false,fDay:null,sel:[],who:store.get("cpWho",""),n:"",x:"",cart:false,busy:false,res:null,done:""};
+const CP={data:store.get("computers",null),at:0,day:null,err:false,form:false,fDay:null,sel:[],who:store.get("cpWho",""),n:"",x:"",cart:false,fixed:false,edit:null,busy:false,res:null,done:""};
 const CART_COL=27, CP_LAST=25;
 function cpMine(){return (store.get("cpMine",[])||[]).filter(m=>m.date>=iso(today))}
 async function cpPost(body){
@@ -1129,20 +1131,22 @@ function cpForm(days){
   const fd=days.find(d=>d.wd===CP.fDay);
   const rows=fd.lessons.map(l=>{const cartBusy=l.bookings.some(b=>b.col===CART_COL), full=l.bookings.filter(b=>b.col<=CP_LAST).length>=(CP_LAST+1)/2;
     const warn=full?"השורה מלאה":(CP.cart&&cartBusy)?"העגלה תפוסה":"";
-    return `<label class="cp-row"><input type="checkbox" name="cpRow" value="${l.row}" ${CP.sel.includes(l.row)?"checked":""}><span><b>${esc(l.name)}</b> <span class="t" dir="ltr">${esc(l.time)}</span></span>${warn?`<span class="warn">${warn}</span>`:""}</label>`}).join("");
+    return `<label class="cp-row"><input type="${CP.edit?"radio":"checkbox"}" name="cpRow" value="${l.row}" ${CP.sel.includes(l.row)?"checked":""}><span><b>${esc(l.name)}</b> <span class="t" dir="ltr">${esc(l.time)}</span></span>${warn?`<span class="warn">${warn}</span>`:""}</label>`}).join("");
   const res=CP.res?`<ul class="cp-res" role="status">${CP.res.map(r=>`<li class="${r.ok?"good":"bad"}">${esc(r.text)}</li>`).join("")}</ul>`:"";
-  return `<form class="panel cp-form" id="cpForm" autocomplete="off"><h3>הזמנה חדשה</h3>
-    <div class="field"><label>מה להזמין?</label><div class="cp-kind" role="radiogroup">
+  const E=CP.edit;
+  return `<form class="panel cp-form" id="cpForm" autocomplete="off"><h3>${E?"עריכת הזמנה":"הזמנה חדשה"}</h3>
+    ${E?`<p class="cp-note">${E.cart?"עגלת המחשבים בבית אורן":"מחשבים ניידים"} · אפשר לשנות יום, שיעור, שם, כמות וציוד.</p>`:`<div class="field"><label>מה להזמין?</label><div class="cp-kind" role="radiogroup">
       <label class="cp-opt"><input type="radio" name="cpKind" value="laptops" ${CP.cart?"":"checked"}><span><b>מחשבים ניידים</b><small>מספר מחשבים לכיתה, ואם צריך גם ציוד</small></span></label>
       <label class="cp-opt"><input type="radio" name="cpKind" value="cart" ${CP.cart?"checked":""}><span><b>עגלת המחשבים בבית אורן</b><small>המפתח לעגלה – כל המחשבים שבבית אורן</small></span></label>
-    </div></div>
+    </div></div>`}
     <div class="field"><label>יום</label><div class="cp-days">${open.map(d=>`<button type="button" class="chip" data-cpfday="${d.wd}" aria-pressed="${d.wd===CP.fDay}">יום ${DAYL[d.wd]}${d.date?`<small>${shortDate(d.date)}</small>`:""}</button>`).join("")}</div></div>
-    <div class="field"><label>שיעורים (אפשר לסמן כמה)</label><div class="cp-rows">${rows}</div></div>
+    <div class="field"><label>${E?"שיעור":"שיעורים (אפשר לסמן כמה)"}</label><div class="cp-rows">${rows}</div></div>
     <div class="field"><label for="cpWho">שם המורה</label><input id="cpWho" value="${esc(CP.who)}" maxlength="40" required></div>
-    ${CP.cart?`<p class="cp-note">ההזמנה תירשם בטבלה בעמודת אורן – המפתח לעגלת המחשבים שבבית אורן.</p>`:`<div class="cp-two"><div class="field"><label for="cpN">מס' מחשבים</label><input id="cpN" type="number" inputmode="numeric" min="1" max="60" value="${esc(CP.n)}"></div>
+    ${CP.cart&&!E?`<p class="cp-note">ההזמנה תירשם בטבלה בעמודת אורן – המפתח לעגלת המחשבים שבבית אורן.</p>`:`<div class="cp-two"><div class="field"><label for="cpN">מס' מחשבים</label><input id="cpN" type="number" inputmode="numeric" min="1" max="60" value="${esc(CP.n)}"></div>
       <div class="field"><label for="cpX">ציוד נוסף (לא חובה)</label><input id="cpX" value="${esc(CP.x)}" maxlength="40" placeholder="עכברים, אוזניות…"></div></div>`}
+    <label class="cp-opt cp-fixed"><input type="checkbox" id="cpFixed" ${CP.fixed?"checked":""}><span><b>הזמנה קבועה – כל שבוע</b><small>תירשם בטבלה במודגש, כמו שאחראי המחשבים מסמן הזמנות קבועות</small></span></label>
     ${res}
-    <div class="row"><button class="btn" type="submit" ${CP.busy?"disabled":""}>${CP.busy?"שולח…":"הזמנה"}</button><button class="btn ghost" type="button" data-cpclose>סגירה</button></div>
+    <div class="row"><button class="btn" type="submit" ${CP.busy?"disabled":""}>${CP.busy?"שולח…":E?"שמירת השינויים":"הזמנה"}</button><button class="btn ghost" type="button" data-cpclose>סגירה</button></div>
   </form>`;
 }
 function shortDate(s){if(!s)return"";const[y,m,d]=s.split("-").map(Number);return d+"."+m}
@@ -1161,7 +1165,7 @@ function computersView(){
   const week=first&&last?`השבוע שבטבלה: ${shortDate(first)} עד ${shortDate(last)}`:"השבוע שבטבלה";
   const mine=cpMine();
   const item=(b,l)=>{const cart=b.col===CART_COL;const k=mine.findIndex(m=>m.date===day.date&&m.row===l.row&&m.col===b.col&&m.who===b.who&&m.what===b.what);
-    return `<span class="cp-item ${b.fixed?"fixed":""} ${cart?"cart":""} ${k>=0?"mine":""}"><b>${esc(b.who||"—")}</b>${cart?`<span>מפתח עגלה · אורן</span>`:b.what?`<bdi dir="rtl">${esc(b.what.replace(/\s*\+\s*/g," + "))}</bdi>`:""}${b.fixed?`<span class="tag">קבוע</span>`:""}${k>=0?`<button data-cpcancel="${k}" aria-label="ביטול ההזמנה שלי">×</button>`:""}</span>`};
+    return `<span class="cp-item ${b.fixed?"fixed":""} ${cart?"cart":""} ${k>=0?"mine":""}"><b>${esc(b.who||"—")}</b>${cart?`<span>מפתח עגלה · אורן</span>`:b.what?`<bdi dir="rtl">${esc(b.what.replace(/\s*\+\s*/g," + "))}</bdi>`:""}${b.fixed?`<span class="tag">קבוע</span>`:""}${k>=0?`<button class="ed" data-cpedit="${k}" data-fx="${b.fixed?1:0}" aria-label="עריכת ההזמנה שלי">עריכה</button><button data-cpcancel="${k}" aria-label="ביטול ההזמנה שלי">×</button>`:""}</span>`};
   return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>מה כבר הוזמן השבוע, לפי הטבלה של אחראי המחשבים</p></div>
   <div class="cp">
     <div class="cp-top"><span class="cp-week">${week}</span><div class="cp-actions">${CP.form?"":`${(()=>{const dis=days.some(d=>!d.date||d.date>=iso(today))?"":"disabled";return `<button class="btn" data-cpnew="laptops" ${dis}>הזמנת מחשבים ניידים</button><button class="btn" data-cpnew="cart" ${dis}>הזמנת עגלת המחשבים בבית אורן</button>`})()}`}<a class="btn ghost" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">פתיחת הטבלה</a></div></div>
@@ -1169,7 +1173,7 @@ function computersView(){
     ${CP.form?cpForm(days):""}
     <div class="cp-days" role="group" aria-label="יום">${days.map(d=>`<button class="chip" data-cpday="${d.wd}" aria-pressed="${d.wd===CP.day}">יום ${DAYL[d.wd]||d.name}${d.date?`<small>${shortDate(d.date)}</small>`:""}</button>`).join("")}</div>
     <div class="cp-list">${day.lessons.length?day.lessons.map(l=>`<div class="cp-lesson ${l.bookings.length?"":"free"}"><div class="ln"><span>${esc(l.name)}</span>${l.time?`<small dir="ltr">${esc(l.time)}</small>`:""}</div><div class="cp-items">${l.bookings.length?l.bookings.map(b=>item(b,l)).join(""):`<span class="empty">אין הזמנות</span>`}</div></div>`).join(""):`<p class="empty">אין שיעורים ביום הזה בטבלה.</p>`}</div>
-    <p class="cp-meta"><span class="cp-item fixed" style="font-size:.8rem;padding:1px 8px"><span class="tag">קבוע</span></span> הזמנה קבועה (מודגשת בטבלה). הזמנה שעשית מהטלפון הזה מסומנת במסגרת, ואפשר לבטל אותה ב־×. ביטול של כל הזמנה אחרת – בטבלה.${D.syncedAt?` · עודכן ${esc(D.syncedAt.slice(11))}`:""}${CP.err?" · אין חיבור, מוצג המידע האחרון שנטען":""}</p>
+    <p class="cp-meta"><span class="cp-item fixed" style="font-size:.8rem;padding:1px 8px"><span class="tag">קבוע</span></span> הזמנה קבועה (מודגשת בטבלה). הזמנה שעשית מהטלפון הזה מסומנת במסגרת, ואפשר לערוך אותה או לבטל ב־×. שינוי של כל הזמנה אחרת – בטבלה.${D.syncedAt?` · עודכן ${esc(D.syncedAt.slice(11))}`:""}${CP.err?" · אין חיבור, מוצג המידע האחרון שנטען":""}</p>
   </div>`;
 }
 function renderBkTable(){
@@ -1431,8 +1435,13 @@ document.addEventListener("click",async ev=>{
   else if(d.bkweek){const x=pd(BK.date);x.setDate(x.getDate()+Number(d.bkweek));BK.date=iso(x);render()}
   else if(d.bkday){BK.date=d.bkday;render()}
   else if(d.cpday){CP.day=Number(d.cpday);render()}
-  else if("cpnew" in d){CP.form=true;CP.cart=d.cpnew==="cart";CP.res=null;CP.done="";CP.sel=[];render()}
-  else if("cpclose" in d){CP.form=false;CP.res=null;render()}
+  else if("cpnew" in d){CP.form=true;CP.edit=null;CP.fixed=false;CP.n="";CP.x="";CP.cart=d.cpnew==="cart";CP.res=null;CP.done="";CP.sel=[];render()}
+  else if("cpclose" in d){CP.form=false;CP.edit=null;CP.res=null;render()}
+  else if(d.cpedit){const m=cpMine()[Number(d.cpedit)]; if(!m) return;
+    const cart=m.col===CART_COL, i=String(m.what||"").indexOf("+");
+    CP.edit={...m,cart}; CP.cart=cart; CP.who=m.who; CP.fixed=d.fx==="1"; CP.fDay=m.wd; CP.sel=[m.row];
+    if(cart){CP.n="";CP.x=""} else if(/^\d+$/.test(m.what)){CP.n=m.what;CP.x=""} else if(i>0&&/^\d+$/.test(m.what.slice(0,i).trim())){CP.n=m.what.slice(0,i).trim();CP.x=m.what.slice(i+1).trim()} else {CP.n="";CP.x=m.what}
+    CP.form=true; CP.res=null; CP.done=""; render(); const f=document.getElementById("cpForm"); if(f) f.scrollIntoView({behavior:"smooth",block:"start"})}
   else if(d.cpfday){CP.fDay=Number(d.cpfday);CP.sel=[];CP.res=null;render()}
   else if(d.cpcancel){const m=cpMine()[Number(d.cpcancel)]; if(!m||!confirm("לבטל את ההזמנה של "+m.who+"?")) return;
     b.disabled=true; CP.done="";
@@ -1459,7 +1468,8 @@ document.addEventListener("click",async ev=>{
 });
 document.addEventListener("input",ev=>{if(ev.target.id==="sigQ"){S.sigQ=ev.target.value;renderSig()}});
 document.addEventListener("change",ev=>{const t=ev.target;
-  if(t.name==="cpRow"){const r=Number(t.value);CP.sel=t.checked?[...new Set([...CP.sel,r])]:CP.sel.filter(x=>x!==r)}
+  if(t.name==="cpRow"){const r=Number(t.value);CP.sel=CP.edit?[r]:t.checked?[...new Set([...CP.sel,r])]:CP.sel.filter(x=>x!==r)}
+  else if(t.id==="cpFixed"){CP.fixed=t.checked}
   else if(t.name==="cpKind"){CP.cart=t.value==="cart";render()}});
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id==="cpWho")CP.who=t.value;else if(t.id==="cpN")CP.n=t.value;else if(t.id==="cpX")CP.x=t.value});
 document.addEventListener("submit",async ev=>{
@@ -1473,14 +1483,21 @@ document.addEventListener("submit",async ev=>{
   if(err.length){CP.res=err.map(t=>({ok:false,text:t}));render();return}
   store.set("cpWho",who); CP.busy=true; CP.res=null; render();
   const wd=CP.fDay;
+  if(CP.edit){const m=CP.edit;
+    try{const j=await cpPost({action:"edit",wd:m.wd,row:m.row,col:m.col,who:m.who,what:m.what,to:{wd,row:CP.sel[0],who,what,fixed:CP.fixed}});
+      if(j.ok){store.set("cpMine",cpMine().filter(x=>!(x.date===m.date&&x.row===m.row&&x.col===m.col)).concat((j.refs||[]).map(f=>({date:j.date,wd:f.wd,row:f.row,col:f.col,who:f.who,what:f.what}))));
+        CP.form=false;CP.edit=null;CP.sel=[];CP.n="";CP.x="";CP.cart=false;CP.fixed=false;CP.day=wd;CP.done="השינויים נשמרו בטבלה."}
+      else CP.res=[{ok:false,text:j.error||"השמירה לא הצליחה"}]}
+    catch(e){CP.res=[{ok:false,text:"אין חיבור, השינויים לא נשמרו. אפשר לנסות שוב."}]}
+    CP.busy=false; render(); return}
   try{
-    const j=await cpPost({action:"book",wd,rows:CP.sel,who,what,cart:CP.cart});
+    const j=await cpPost({action:"book",wd,rows:CP.sel,who,what,cart:CP.cart,fixed:CP.fixed});
     if(j.error&&!j.results){CP.res=[{ok:false,text:j.error}]}
     else{
       const mine=cpMine(); (j.results||[]).forEach(r=>(r.refs||[]).forEach(f=>mine.push({date:j.date,wd,row:r.row,col:f.col,who:f.who,what:f.what})));
       store.set("cpMine",mine);
       const bad=(j.results||[]).filter(r=>!r.ok), good=(j.results||[]).filter(r=>r.ok);
-      if(!bad.length){CP.form=false;CP.res=null;CP.sel=[];CP.n="";CP.x="";CP.cart=false;CP.day=wd;
+      if(!bad.length){CP.form=false;CP.res=null;CP.sel=[];CP.n="";CP.x="";CP.cart=false;CP.fixed=false;CP.day=wd;
         CP.done="ההזמנה נקלטה בטבלה: "+good.map(r=>r.lesson).join(", ")+"."}
       else{CP.sel=bad.map(r=>r.row);
         CP.res=good.map(r=>({ok:true,text:r.lesson+" – הוזמן ✓"})).concat(bad.map(r=>({ok:false,text:r.lesson+" – "+r.msg})))}

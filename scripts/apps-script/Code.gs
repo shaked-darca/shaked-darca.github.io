@@ -211,14 +211,17 @@ function isoDate_(s) {
 
 /* ---------- booking from the site ---------- */
 
-// האתר שולח: {action:"book", wd, rows:[...], who, what, cart}  או  {action:"cancel", wd, row, col, who, what}
+// האתר שולח: {action:"book", wd, rows:[...], who, what, cart, fixed}
+//          או {action:"cancel", wd, row, col, who, what}
+//          או {action:"edit", wd, row, col, who, what, to:{wd, row, who, what, fixed}}
+// הזמנה קבועה (fixed) נכתבת במודגש, כמו שאחראי המחשבים מסמן הזמנות קבועות.
 function doPost(e) {
   let out;
   const lock = LockService.getScriptLock();
   try {
     const req = JSON.parse(e.postData.contents);
     lock.waitLock(15000);
-    out = req.action === "cancel" ? cancel_(req) : book_(req);
+    out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : book_(req);
     CacheService.getScriptCache().remove(COMPUTERS_KEY);
     out.data = JSON.parse(buildComputers_());
   } catch (err) {
@@ -237,7 +240,7 @@ function daySheet_(wd) {
 }
 
 function book_(req) {
-  const who = clean_(req.who, 40), what = clean_(req.what, 60), cart = !!req.cart;
+  const who = clean_(req.who, 40), what = clean_(req.what, 60), cart = !!req.cart, fixed = !!req.fixed;
   if (!who) throw new Error("חסר שם");
   if (!what && !cart) throw new Error("חסר מה להזמין");
   const rows = (req.rows || []).map(Number).filter(r => r > 0);
@@ -266,8 +269,8 @@ function book_(req) {
       if (free < 0) { res.ok = false; res.msg = "אין מקום פנוי בשורה של השיעור"; }
     }
     if (res.ok) {
-      if (what) { put_(sh, r, free, who, what, stamp); res.refs.push({ col: free, who, what }); }
-      if (cart) { put_(sh, r, CART_COL, who, "אורן", stamp); res.refs.push({ col: CART_COL, who, what: "אורן" }); }
+      if (what) { put_(sh, r, free, who, what, stamp, fixed); res.refs.push({ col: free, who, what }); }
+      if (cart) { put_(sh, r, CART_COL, who, "אורן", stamp, fixed); res.refs.push({ col: CART_COL, who, what: "אורן" }); }
     }
     results.push(res);
   });
@@ -275,23 +278,52 @@ function book_(req) {
   return { ok: results.some(x => x.ok), date, results };
 }
 
-function cancel_(req) {
+// בודק שההזמנה עדיין בטבלה כמו שנעשתה מהאתר (כדי לא לגעת בהזמנות של אחרים)
+function ownCell_(req) {
   const sh = daySheet_(Number(req.wd));
   const r = Number(req.row), c = Number(req.col);
   if (!(r > 0) || c < COMP_FIRST || c > CART_COL) throw new Error("הזמנה לא תקינה");
   const rng = sh.getRange(r + 1, c + 1, 1, 2);
   const v = rng.getDisplayValues()[0], note = String(sh.getRange(r + 1, c + 1).getNote() || "");
-  if (String(v[0]).trim() !== String(req.who || "").trim() || String(v[1]).trim() !== String(req.what || "").trim() || note.indexOf(SITE_NOTE) !== 0) {
-    return { ok: false, error: "ההזמנה השתנתה בטבלה, אפשר לבטל רק דרך הטבלה" };
-  }
-  rng.clearContent(); rng.clearNote();
+  const ok = String(v[0]).trim() === String(req.who || "").trim() && String(v[1]).trim() === String(req.what || "").trim() && note.indexOf(SITE_NOTE) === 0;
+  return { sh, r, c, rng, ok };
+}
+
+function cancel_(req) {
+  const o = ownCell_(req);
+  if (!o.ok) return { ok: false, error: "ההזמנה השתנתה בטבלה, אפשר לבטל רק דרך הטבלה" };
+  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal");
   SpreadsheetApp.flush();
   return { ok: true };
 }
 
-function put_(sh, r, c, who, what, note) {
+// עריכה: באותו שיעור – כותב במקום. ביום/שיעור אחר – מזמין במקום החדש ורק אם הצליח מוחק את הישנה.
+function edit_(req) {
+  const o = ownCell_(req), to = req.to || {};
+  if (!o.ok) return { ok: false, error: "ההזמנה השתנתה בטבלה, אפשר לערוך רק דרך הטבלה" };
+  const cart = o.c === CART_COL;
+  const who = clean_(to.who, 40), what = cart ? "אורן" : clean_(to.what, 60), fixed = !!to.fixed;
+  if (!who) throw new Error("חסר שם");
+  if (!what) throw new Error("חסר מה להזמין");
+  const toWd = Number(to.wd), toRow = Number(to.row);
+  const stamp = SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm");
+  if (toWd === Number(req.wd) && toRow === o.r) {
+    put_(o.sh, o.r, o.c, who, what, stamp, fixed);
+    SpreadsheetApp.flush();
+    const vals = o.sh.getRange(1, 1).getDisplayValue();
+    return { ok: true, date: isoDate_(vals), refs: [{ wd: toWd, row: o.r, col: o.c, who, what }] };
+  }
+  const b = book_({ wd: toWd, rows: [toRow], who, what: cart ? "" : what, cart, fixed });
+  const res = b.results[0];
+  if (!res || !res.ok) return { ok: false, error: (res && res.msg) || "לא הצלחנו להזמין במקום החדש, ההזמנה הקודמת נשארה" };
+  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal");
+  SpreadsheetApp.flush();
+  return { ok: true, date: b.date, refs: res.refs.map(f => ({ wd: toWd, row: toRow, col: f.col, who: f.who, what: f.what })) };
+}
+
+function put_(sh, r, c, who, what, note, fixed) {
   const rng = sh.getRange(r + 1, c + 1, 1, 2);
-  rng.setValues([[safe_(who), safe_(what)]]).setFontWeight("normal");
+  rng.setValues([[safe_(who), safe_(what)]]).setFontWeight(fixed ? "bold" : "normal");
   sh.getRange(r + 1, c + 1).setNote(note);
 }
 function clean_(s, max) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, max); }
