@@ -28,7 +28,8 @@ self.addEventListener("fetch", e => {
     e.respondWith(
       fetch(req, { cache: "no-store" })
         .then(res => {
-          if (res.ok) { const copy = res.clone(); caches.open(SHELL).then(c => c.put("index.html", copy)); }
+          // only the real home page is kept for offline use (not draft.html or other pages)
+          if (res.ok && /\/(index\.html)?$/.test(url.pathname)) { const copy = res.clone(); caches.open(SHELL).then(c => c.put("index.html", copy)); }
           return res;
         })
         .catch(() => caches.match("index.html").then(r => r || caches.match("./")))
