@@ -168,7 +168,7 @@ function build_() {
 /* ---------- computer bookings ---------- */
 
 // כל לשונית היא יום. A1 = התאריך, עמודה A = השיעורים, ואחריה זוגות "מורה | מס' מחשבים וציוד".
-// הזמנה מודגשת = הזמנה קבועה.
+// הזמנה מודגשת = הזמנה קבועה. הזמנה קבועה באדום = הזמנה מוקפאת (המחשבים פנויים).
 function buildComputers_() {
   const ss = SpreadsheetApp.openById(COMPUTERS_SHEET);
   const days = [];
@@ -176,7 +176,7 @@ function buildComputers_() {
     const sh = ss.getSheetByName(name);
     if (!sh) return;
     const rng = sh.getDataRange();
-    const vals = rng.getDisplayValues(), bold = rng.getFontWeights();
+    const vals = rng.getDisplayValues(), bold = rng.getFontWeights(), color = rng.getFontColors();
     let start = vals.findIndex(r => String(r[0]).trim() === "שיעורים");
     if (start < 0) start = vals.findIndex(r => /^שיעור\s*\d/.test(String(r[0]).trim())) - 1;
     const lessons = [];
@@ -189,7 +189,8 @@ function buildComputers_() {
         const who = String(vals[i][c] || "").trim(), what = String(vals[i][c + 1] || "").trim();
         if (!who && !what) continue;
         const fixed = bold[i][c] === "bold" || (c + 1 < bold[i].length && bold[i][c + 1] === "bold");
-        bookings.push({ who, what, fixed, col: c });
+        const frozen = fixed && (isRed_(color[i][c]) || (c + 1 < color[i].length && isRed_(color[i][c + 1])));
+        bookings.push({ who, what, fixed, frozen, col: c });
       }
       lessons.push({ row: i, name: num ? "שיעור " + num[1] : label, time: time ? time[1] + "–" + time[2] : "", bookings });
     }
@@ -199,6 +200,14 @@ function buildComputers_() {
   const body = JSON.stringify({ ok: true, syncedAt: fmt_(new Date(), "yyyy-MM-dd HH:mm"), days });
   if (body.length < 95000) CacheService.getScriptCache().put(COMPUTERS_KEY, body, COMPUTERS_SECONDS);
   return body;
+}
+
+// צבע גופן אדום (#ff0000, #cc0000, #e06666 וכו')
+function isRed_(hex) {
+  const m = String(hex || "").match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return false;
+  const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+  return r >= 150 && r - g >= 70 && r - b >= 70;
 }
 
 // "4/11/2026" או "04/11/2026" → "2026-11-04"
@@ -248,7 +257,8 @@ function book_(req) {
   const sh = daySheet_(Number(req.wd));
   const vals = sh.getDataRange().getDisplayValues();
   const date = isoDate_(vals[0] && vals[0][0]);
-  if (date && date < fmt_(new Date(), "yyyy-MM-dd")) throw new Error("היום הזה כבר עבר");
+  // הזמנה קבועה חוזרת כל שבוע, ולכן אפשר לרשום אותה גם ביום שכבר עבר השבוע (היא תחול מהשבוע הבא)
+  if (!fixed && date && date < fmt_(new Date(), "yyyy-MM-dd")) throw new Error("היום הזה כבר עבר");
   const stamp = SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm");
   const results = [];
   rows.forEach(r => {
@@ -292,7 +302,7 @@ function ownCell_(req) {
 function cancel_(req) {
   const o = ownCell_(req);
   if (!o.ok) return { ok: false, error: "ההזמנה השתנתה בטבלה, אפשר לבטל רק דרך הטבלה" };
-  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal");
+  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal").setFontColor("#000000");
   SpreadsheetApp.flush();
   return { ok: true };
 }
@@ -316,14 +326,15 @@ function edit_(req) {
   const b = book_({ wd: toWd, rows: [toRow], who, what: cart ? "" : what, cart, fixed });
   const res = b.results[0];
   if (!res || !res.ok) return { ok: false, error: (res && res.msg) || "לא הצלחנו להזמין במקום החדש, ההזמנה הקודמת נשארה" };
-  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal");
+  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal").setFontColor("#000000");
   SpreadsheetApp.flush();
   return { ok: true, date: b.date, refs: res.refs.map(f => ({ wd: toWd, row: toRow, col: f.col, who: f.who, what: f.what })) };
 }
 
 function put_(sh, r, c, who, what, note, fixed) {
   const rng = sh.getRange(r + 1, c + 1, 1, 2);
-  rng.setValues([[safe_(who), safe_(what)]]).setFontWeight(fixed ? "bold" : "normal");
+  // צבע שחור: תא שהתפנה אחרי הזמנה מוקפאת נשאר אדום, ובלי זה הזמנה חדשה הייתה נראית מוקפאת
+  rng.setValues([[safe_(who), safe_(what)]]).setFontWeight(fixed ? "bold" : "normal").setFontColor("#000000");
   sh.getRange(r + 1, c + 1).setNote(note);
 }
 function clean_(s, max) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, max); }

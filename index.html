@@ -269,6 +269,9 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .cp-item{background:var(--water-soft);border-radius:8px;padding:4px 10px;font-size:.92rem;display:inline-flex;gap:6px;align-items:baseline;flex-wrap:wrap}
 .cp-item b{font-weight:700}
 .cp-item.fixed{background:var(--palm-soft)}
+.cp-item.frozen{background:var(--sunk);color:var(--muted)}
+.cp-item.frozen b,.cp-item.frozen bdi{text-decoration:line-through;text-decoration-thickness:1px}
+.cp-item .tag.ice{background:#fde8e6;color:#b42318}
 .cp-item .tag{background:var(--surface);color:var(--palm)}
 .cp-meta{font-size:.82rem;color:var(--muted);margin:0}
 .cp-actions{display:flex;flex-wrap:wrap;gap:8px}
@@ -1140,8 +1143,10 @@ function loadComp(){
 }
 const DAYL=["א׳","ב׳","ג׳","ד׳","ה׳"];
 function cpForm(days){
-  const open=days.filter(d=>!d.date||d.date>=iso(today));
-  if(CP.fDay==null||!open.some(d=>d.wd===CP.fDay)) CP.fDay=(open.find(d=>d.wd===CP.day)||open[0]).wd;
+  const isOpen=d=>CP.fixed||!d.date||d.date>=iso(today);
+  const open=days.filter(isOpen);
+  if(!open.length) return `<form class="panel cp-form" id="cpForm" autocomplete="off"><h3>${CP.edit?"עריכת הזמנה":"הזמנה חדשה"}</h3><p class="cp-note">כל הימים בטבלה של השבוע הזה כבר עברו. הטבלה של השבוע הבא תעלה כשאחראי המחשבים יעדכן אותה. אפשר כבר עכשיו לרשום הזמנה קבועה.</p><label class="cp-opt cp-fixed"><input type="checkbox" id="cpFixed"><span><b>הזמנה קבועה – כל שבוע</b><small>תירשם בטבלה במודגש ותחול מהשבוע הבא</small></span></label><div class="row"><button class="btn ghost" type="button" data-cpclose>סגירה</button></div></form>`;
+  if(CP.fDay==null||!open.some(d=>d.wd===CP.fDay)){CP.fDay=(open.find(d=>d.wd===CP.day)||open[0]).wd;CP.sel=CP.edit?CP.sel:[]}
   const fd=days.find(d=>d.wd===CP.fDay);
   const rows=fd.lessons.map(l=>{const cartBusy=l.bookings.some(b=>b.col===CART_COL), full=l.bookings.filter(b=>b.col<=CP_LAST).length>=(CP_LAST+1)/2;
     const warn=full?"השורה מלאה":(CP.cart&&cartBusy)?"העגלה תפוסה":"";
@@ -1153,12 +1158,12 @@ function cpForm(days){
       <label class="cp-opt"><input type="radio" name="cpKind" value="laptops" ${CP.cart?"":"checked"}><span><b>מחשבים ניידים</b><small>מספר מחשבים לכיתה, ואם צריך גם ציוד</small></span></label>
       <label class="cp-opt"><input type="radio" name="cpKind" value="cart" ${CP.cart?"checked":""}><span><b>עגלת המחשבים בבית אורן</b><small>המפתח לעגלה – כל המחשבים שבבית אורן</small></span></label>
     </div></div>`}
-    <div class="field"><label>יום</label><div class="cp-days">${open.map(d=>`<button type="button" class="chip" data-cpfday="${d.wd}" aria-pressed="${d.wd===CP.fDay}">יום ${DAYL[d.wd]}${d.date?`<small>${shortDate(d.date)}</small>`:""}</button>`).join("")}</div></div>
+    <div class="field"><label>יום</label><div class="cp-days">${open.map(d=>`<button type="button" class="chip" data-cpfday="${d.wd}" aria-pressed="${d.wd===CP.fDay}">יום ${DAYL[d.wd]}${d.date?`<small>${d.date<iso(today)?"מהשבוע הבא":shortDate(d.date)}</small>`:""}</button>`).join("")}</div></div>
     <div class="field"><label>${E?"שיעור":"שיעורים (אפשר לסמן כמה)"}</label><div class="cp-rows">${rows}</div></div>
     <div class="field"><label for="cpWho">שם המורה</label><input id="cpWho" value="${esc(CP.who)}" maxlength="40" required></div>
     ${CP.cart&&!E?`<p class="cp-note">ההזמנה תירשם בטבלה בעמודת אורן – המפתח לעגלת המחשבים שבבית אורן.</p>`:`<div class="cp-two"><div class="field"><label for="cpN">מס' מחשבים</label><input id="cpN" type="number" inputmode="numeric" min="1" max="60" value="${esc(CP.n)}"></div>
       <div class="field"><label for="cpX">ציוד נוסף (לא חובה)</label><input id="cpX" value="${esc(CP.x)}" maxlength="40" placeholder="עכברים, אוזניות…"></div></div>`}
-    <label class="cp-opt cp-fixed"><input type="checkbox" id="cpFixed" ${CP.fixed?"checked":""}><span><b>הזמנה קבועה – כל שבוע</b><small>תירשם בטבלה במודגש, כמו שאחראי המחשבים מסמן הזמנות קבועות</small></span></label>
+    <label class="cp-opt cp-fixed"><input type="checkbox" id="cpFixed" ${CP.fixed?"checked":""}><span><b>הזמנה קבועה – כל שבוע</b><small>תירשם בטבלה במודגש, כמו שאחראי המחשבים מסמן הזמנות קבועות${CP.fixed&&days.some(d=>d.date&&d.date<iso(today))?". אפשר לבחור גם יום שכבר עבר השבוע – ההזמנה תחול מהשבוע הבא":""}</small></span></label>
     ${res}
     <div class="row"><button class="btn" type="submit" ${CP.busy?"disabled":""}>${CP.busy?"שולח…":E?"שמירת השינויים":"הזמנה"}</button><button class="btn ghost" type="button" data-cpclose>סגירה</button></div>
   </form>`;
@@ -1179,15 +1184,15 @@ function computersView(){
   const week=first&&last?`השבוע שבטבלה: ${shortDate(first)} עד ${shortDate(last)}`:"השבוע שבטבלה";
   const mine=cpMine();
   const item=(b,l)=>{const cart=b.col===CART_COL;const k=mine.findIndex(m=>m.date===day.date&&m.row===l.row&&m.col===b.col&&m.who===b.who&&m.what===b.what);
-    return `<span class="cp-item ${b.fixed?"fixed":""} ${cart?"cart":""} ${k>=0?"mine":""}"><b>${esc(b.who||"—")}</b>${cart?`<span>מפתח עגלה · אורן</span>`:b.what?`<bdi dir="rtl">${esc(b.what.replace(/\s*\+\s*/g," + "))}</bdi>`:""}${b.fixed?`<span class="tag">קבוע</span>`:""}${k>=0?`<button class="ed" data-cpedit="${k}" data-fx="${b.fixed?1:0}" aria-label="עריכת ההזמנה שלי">עריכה</button><button data-cpcancel="${k}" aria-label="ביטול ההזמנה שלי">×</button>`:""}</span>`};
+    return `<span class="cp-item ${b.frozen?"frozen":b.fixed?"fixed":""} ${cart?"cart":""} ${k>=0?"mine":""}"><b>${esc(b.who||"—")}</b>${cart?`<span>מפתח עגלה · אורן</span>`:b.what?`<bdi dir="rtl">${esc(b.what.replace(/\s*\+\s*/g," + "))}</bdi>`:""}${b.frozen?`<span class="tag ice">מוקפא – פנוי</span>`:b.fixed?`<span class="tag">קבוע</span>`:""}${k>=0?`<button class="ed" data-cpedit="${k}" data-fx="${b.fixed?1:0}" aria-label="עריכת ההזמנה שלי">עריכה</button><button data-cpcancel="${k}" aria-label="ביטול ההזמנה שלי">×</button>`:""}</span>`};
   return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>מה כבר הוזמן השבוע, לפי הטבלה של אחראי המחשבים</p></div>
   <div class="cp">
-    <div class="cp-top"><span class="cp-week">${week}</span><div class="cp-actions">${CP.form?"":`${(()=>{const dis=days.some(d=>!d.date||d.date>=iso(today))?"":"disabled";return `<button class="btn" data-cpnew="laptops" ${dis}>הזמנת מחשבים ניידים</button><button class="btn" data-cpnew="cart" ${dis}>הזמנת עגלת המחשבים בבית אורן</button>`})()}`}<a class="btn ghost" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">פתיחת הטבלה</a></div></div>
+    <div class="cp-top"><span class="cp-week">${week}</span><div class="cp-actions">${CP.form?"":`<button class="btn" data-cpnew="laptops">הזמנת מחשבים ניידים</button><button class="btn" data-cpnew="cart">הזמנת עגלת המחשבים בבית אורן</button>`}<a class="btn ghost" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">פתיחת הטבלה</a></div></div>
     ${CP.done?`<div class="cp-done" role="status">${esc(CP.done)}</div>`:""}
     ${CP.form?cpForm(days):""}
     <div class="cp-days" role="group" aria-label="יום">${days.map(d=>`<button class="chip" data-cpday="${d.wd}" aria-pressed="${d.wd===CP.day}">יום ${DAYL[d.wd]||d.name}${d.date?`<small>${shortDate(d.date)}</small>`:""}</button>`).join("")}</div>
     <div class="cp-list">${day.lessons.length?day.lessons.map(l=>`<div class="cp-lesson ${l.bookings.length?"":"free"}"><div class="ln"><span>${esc(l.name)}</span>${l.time?`<small dir="ltr">${esc(l.time)}</small>`:""}</div><div class="cp-items">${l.bookings.length?l.bookings.map(b=>item(b,l)).join(""):`<span class="empty">אין הזמנות</span>`}</div></div>`).join(""):`<p class="empty">אין שיעורים ביום הזה בטבלה.</p>`}</div>
-    <p class="cp-meta"><span class="cp-item fixed" style="font-size:.8rem;padding:1px 8px"><span class="tag">קבוע</span></span> הזמנה קבועה (מודגשת בטבלה). הזמנה שעשית מהטלפון הזה מסומנת במסגרת, ואפשר לערוך אותה או לבטל ב־×. שינוי של כל הזמנה אחרת – בטבלה.${D.syncedAt?` · עודכן ${esc(D.syncedAt.slice(11))}`:""}${CP.err?" · אין חיבור, מוצג המידע האחרון שנטען":""}</p>
+    <p class="cp-meta"><span class="cp-item fixed" style="font-size:.8rem;padding:1px 8px"><span class="tag">קבוע</span></span> הזמנה קבועה (מודגשת בטבלה). <span class="cp-item frozen" style="font-size:.8rem;padding:1px 8px"><span class="tag ice">מוקפא – פנוי</span></span> הזמנה קבועה שהוקפאה (באדום בטבלה) – המחשבים שלה פנויים. הזמנה שעשית מהטלפון הזה מסומנת במסגרת, ואפשר לערוך אותה או לבטל ב־×. שינוי של כל הזמנה אחרת – בטבלה.${D.syncedAt?` · עודכן ${esc(D.syncedAt.slice(11))}`:""}${CP.err?" · אין חיבור, מוצג המידע האחרון שנטען":""}</p>
   </div>`;
 }
 function renderBkTable(){
@@ -1483,7 +1488,7 @@ document.addEventListener("click",async ev=>{
 document.addEventListener("input",ev=>{if(ev.target.id==="sigQ"){S.sigQ=ev.target.value;renderSig()}});
 document.addEventListener("change",ev=>{const t=ev.target;
   if(t.name==="cpRow"){const r=Number(t.value);CP.sel=CP.edit?[r]:t.checked?[...new Set([...CP.sel,r])]:CP.sel.filter(x=>x!==r)}
-  else if(t.id==="cpFixed"){CP.fixed=t.checked}
+  else if(t.id==="cpFixed"){CP.fixed=t.checked;render()}
   else if(t.name==="cpKind"){CP.cart=t.value==="cart";render()}});
 document.addEventListener("input",ev=>{const t=ev.target;if(t.id==="cpWho")CP.who=t.value;else if(t.id==="cpN")CP.n=t.value;else if(t.id==="cpX")CP.x=t.value});
 document.addEventListener("submit",async ev=>{
