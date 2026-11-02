@@ -30,6 +30,19 @@
 .ios-tip{position:fixed;inset:auto 12px calc(12px + env(safe-area-inset-bottom,0px)) 12px;z-index:50;background:#fff;color:#16201e;border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:16px 18px;display:grid;gap:8px;max-width:460px;margin-inline:auto;font-family:"Assistant",system-ui,sans-serif;line-height:1.5}
 .install-pop{position:fixed;inset:auto 12px calc(12px + env(safe-area-inset-bottom,0px)) 12px;z-index:45;max-width:460px;margin-inline:auto;background:#163a32;color:#f4f8f5;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;font-family:"Assistant",system-ui,sans-serif;line-height:1.45;transform:translateY(140%);transition:transform .35s ease}
 .install-pop.on{transform:none}
+.refresh-btn{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+.refresh-btn:hover{color:var(--ink)}
+.refresh-btn svg{width:18px;height:18px}
+@media (max-width:640px){.refresh-btn{width:32px;height:32px}}
+@media (max-width:386px){.refresh-btn{display:none}}
+.refresh-btn.spin svg{animation:rfspin .8s linear infinite}
+@keyframes rfspin{to{transform:rotate(360deg)}}
+.ptr{position:fixed;top:calc(6px + env(safe-area-inset-top,0px));left:50%;z-index:60;width:40px;height:40px;margin-left:-20px;border-radius:50%;background:#fff;color:#163a32;box-shadow:0 4px 16px rgba(0,0,0,.25);display:grid;place-items:center;transform:translateY(-70px);opacity:0;pointer-events:none}
+.ptr svg{width:22px;height:22px}
+.ptr.ready svg,.ptr.go svg{color:#1f7a5c}
+.ptr.go svg{animation:rfspin .8s linear infinite}
+@media (display-mode:standalone){html,body{overscroll-behavior-y:contain}}
+@media (prefers-reduced-motion:reduce){.refresh-btn.spin svg,.ptr.go svg{animation-duration:2s}}
 .install-pop img{width:48px;height:48px;border-radius:12px;grid-row:span 2}
 .install-pop b{font-size:1.05rem}.install-pop p{margin:0;color:#b9d3c8;font-size:.92rem}
 .install-pop .acts{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-start;margin-top:6px}
@@ -667,6 +680,7 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
       <a href="#guides" data-area="guides">מדריכים</a>
     </nav>
     <button class="edit-link" id="editToggle" hidden>מצב עריכה</button>
+    <button type="button" class="refresh-btn" id="refreshBtn" aria-label="רענון האפליקציה" title="רענון"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
   </div></div>
 </header>
 <main class="wrap"><div id="editbar"></div><div id="view"></div></main>
@@ -1623,6 +1637,31 @@ use("assets").then(a=>{S.cap.assets=a; if(S.editing) render()});
 </script>
 
 
+<script>
+/* refresh: button in the header + pull-down-to-refresh in the installed app */
+(function(){
+  const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>';
+  let busy=false;
+  async function refresh(){
+    if(busy) return; busy=true;
+    const b=document.getElementById("refreshBtn"); if(b) b.classList.add("spin");
+    try{ if("serviceWorker" in navigator){const r=await navigator.serviceWorker.getRegistration(); if(r) await Promise.race([r.update(),new Promise(z=>setTimeout(z,2500))])} }catch(_){}
+    location.reload();
+  }
+  window.appRefresh=refresh;
+  document.addEventListener("click",e=>{ if(e.target.closest("#refreshBtn")) refresh() });
+  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+  if(!standalone||!("ontouchstart" in window)) return;
+  const LIMIT=80; let y0=null, pull=0, ind=null;
+  function el(){ if(!ind){ind=document.createElement("div");ind.className="ptr";ind.setAttribute("aria-hidden","true");ind.innerHTML=ICON;document.body.appendChild(ind)} return ind }
+  function paint(d){const i=el(); const t=Math.min(d,LIMIT*1.4); i.style.transition="none"; i.style.opacity=String(Math.min(1,t/LIMIT)); i.style.transform="translateY("+(t-60)+"px) rotate("+(t*3)+"deg)"; i.classList.toggle("ready",d>=LIMIT)}
+  function reset(){ if(!ind) return; ind.style.transition="transform .25s, opacity .25s"; ind.style.transform="translateY(-70px)"; ind.style.opacity="0"; ind.classList.remove("ready") }
+  window.addEventListener("touchstart",e=>{ y0=(window.scrollY<=0&&e.touches.length===1&&!document.querySelector(".ios-tip,.planner"))?e.touches[0].clientY:null; pull=0 },{passive:true});
+  window.addEventListener("touchmove",e=>{ if(y0===null) return; pull=(e.touches[0].clientY-y0)*.5; if(pull>0&&window.scrollY<=0) paint(pull); else {y0=null; reset()} },{passive:true});
+  window.addEventListener("touchend",()=>{ if(y0===null) return; y0=null;
+    if(pull>=LIMIT){const i=el(); i.style.transition="transform .2s"; i.style.transform="translateY(10px)"; i.classList.add("go"); refresh()} else reset() },{passive:true});
+})();
+</script>
 <script>
 /* app install + offline support */
 (function(){
