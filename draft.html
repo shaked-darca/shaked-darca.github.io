@@ -1261,12 +1261,12 @@ function cpForm(days){
       <label class="cp-opt"><input type="radio" name="cpKind" value="laptops" ${CP.cart?"":"checked"}><span><b>מחשבים ניידים</b><small>מספר מחשבים לכיתה, ואם צריך גם ציוד</small></span></label>
       <label class="cp-opt"><input type="radio" name="cpKind" value="cart" ${CP.cart?"checked":""}><span><b>עגלת המחשבים בבית אורן</b><small>המפתח לעגלה – כל המחשבים שבבית אורן</small></span></label>
     </div></div>`}
+    <label class="cp-opt cp-fixed"><input type="checkbox" id="cpFixed" ${CP.fixed?"checked":""}><span><b>הזמנה קבועה – כל שבוע</b><small>תירשם בטבלה במודגש, כמו שאחראי המחשבים מסמן הזמנות קבועות${CP.fixed&&days.some(d=>d.date&&d.date<iso(today))?". אפשר לבחור גם יום שכבר עבר השבוע – ההזמנה תחול מהשבוע הבא":""}</small></span></label>
     <div class="field"><label>יום</label><div class="cp-days">${open.map(d=>`<button type="button" class="chip" data-cpfday="${d.wd}" aria-pressed="${d.wd===CP.fDay}">יום ${DAYL[d.wd]}${d.date?`<small>${d.date<iso(today)?"מהשבוע הבא":shortDate(d.date)}</small>`:""}</button>`).join("")}</div></div>
     <div class="field"><label>${E?"שיעור":"שיעורים (אפשר לסמן כמה)"}</label><div class="cp-rows">${rows}</div></div>
     <div class="field"><label for="cpWho">שם המורה</label><input id="cpWho" value="${esc(CP.who)}" maxlength="40" required></div>
     ${CP.cart&&!E?`<p class="cp-note">ההזמנה תירשם בטבלה בעמודת אורן – המפתח לעגלת המחשבים שבבית אורן.</p>`:`<div class="cp-two"><div class="field"><label for="cpN">מס' מחשבים</label><input id="cpN" type="number" inputmode="numeric" min="1" max="60" value="${esc(CP.n)}"></div>
       <div class="field"><label for="cpX">ציוד נוסף (לא חובה)</label><input id="cpX" value="${esc(CP.x)}" maxlength="40" placeholder="עכברים, אוזניות…"></div></div>`}
-    <label class="cp-opt cp-fixed"><input type="checkbox" id="cpFixed" ${CP.fixed?"checked":""}><span><b>הזמנה קבועה – כל שבוע</b><small>תירשם בטבלה במודגש, כמו שאחראי המחשבים מסמן הזמנות קבועות${CP.fixed&&days.some(d=>d.date&&d.date<iso(today))?". אפשר לבחור גם יום שכבר עבר השבוע – ההזמנה תחול מהשבוע הבא":""}</small></span></label>
     ${res}
     <div class="row"><button class="btn" type="submit" ${CP.busy?"disabled":""}>${CP.busy?"שולח…":E?"שמירת השינויים":"הזמנה"}</button><button class="btn ghost" type="button" data-cpclose>סגירה</button></div>
   </form>`;
@@ -1288,7 +1288,8 @@ function computersView(){
     return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>למורים</p></div>
     <section class="place" style="max-width:560px"><p style="margin:0;color:var(--muted)">${CP.err||!CAL_URL?"לא הצלחנו לטעון כרגע את ההזמנות. אפשר לראות ולהזמין ישירות בטבלה.":"טוען את ההזמנות של השבוע…"}</p><div>${link}</div></section>`;
   }
-  const days=D.days, todayWd=today.getDay();
+  /* שורה עם שגיאת נוסחה בטבלה (כמו #ERROR!) אינה שיעור */
+  const days=D.days.map(d=>({...d,lessons:d.lessons.filter(l=>!/^#/.test(String(l.name).trim()))})), todayWd=today.getDay();
   if(CP.day==null||!days.some(d=>d.wd===CP.day)) CP.day=(days.find(d=>d.wd===todayWd)||days[0]).wd;
   const day=days.find(d=>d.wd===CP.day);
   const first=days[0].date, last=days[days.length-1].date;
