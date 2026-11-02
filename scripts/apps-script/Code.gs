@@ -223,6 +223,7 @@ function isoDate_(s) {
 // האתר שולח: {action:"book", wd, rows:[...], who, what, cart, fixed}
 //          או {action:"cancel", wd, row, col, who, what}
 //          או {action:"edit", wd, row, col, who, what, to:{wd, row, who, what, fixed}}
+//          או {action:"freeze", wd, row, col, who, what, frozen, by}
 // הזמנה קבועה (fixed) נכתבת במודגש, כמו שאחראי המחשבים מסמן הזמנות קבועות.
 function doPost(e) {
   let out;
@@ -230,7 +231,7 @@ function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
     lock.waitLock(15000);
-    out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : book_(req);
+    out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : req.action === "freeze" ? freeze_(req) : book_(req);
     CacheService.getScriptCache().remove(COMPUTERS_KEY);
     out.data = JSON.parse(buildComputers_());
   } catch (err) {
@@ -329,6 +330,28 @@ function edit_(req) {
   o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal").setFontColor("#000000");
   SpreadsheetApp.flush();
   return { ok: true, date: b.date, refs: res.refs.map(f => ({ wd: toWd, row: toRow, col: f.col, who: f.who, what: f.what })) };
+}
+
+// הקפאה: צובע הזמנה קבועה באדום (מוקפאת – המחשבים פנויים) או מחזיר אותה לשחור.
+// כל אחד יכול, עם שם לאישור, ושמו נרשם בהערה על התא כדי שיהיה ברור מי הקפיא.
+function freeze_(req) {
+  const by = clean_(req.by, 40);
+  if (!by) throw new Error("חסר שם");
+  const sh = daySheet_(Number(req.wd));
+  const r = Number(req.row), c = Number(req.col);
+  if (!(r > 0) || !(c >= COMP_FIRST) || c % 2 !== 1) throw new Error("הזמנה לא תקינה");
+  const rng = sh.getRange(r + 1, c + 1, 1, 2);
+  const v = rng.getDisplayValues()[0], w = rng.getFontWeights()[0];
+  if (String(v[0]).trim() !== String(req.who || "").trim() || String(v[1]).trim() !== String(req.what || "").trim())
+    return { ok: false, error: "ההזמנה השתנתה בטבלה. כדאי לרענן ולנסות שוב" };
+  if (w[0] !== "bold" && w[1] !== "bold") return { ok: false, error: "אפשר להקפיא רק הזמנה קבועה" };
+  const on = !!req.frozen;
+  rng.setFontColor(on ? "#ff0000" : "#000000");
+  const cell = sh.getRange(r + 1, c + 1), note = String(cell.getNote() || "");
+  const line = (on ? "הוקפא" : "ההקפאה בוטלה") + " מהאתר על ידי " + by + " · " + fmt_(new Date(), "d/M HH:mm");
+  cell.setNote(note ? note + "\n" + line : line);
+  SpreadsheetApp.flush();
+  return { ok: true };
 }
 
 function put_(sh, r, c, who, what, note, fixed) {
