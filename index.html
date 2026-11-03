@@ -100,6 +100,7 @@ main{padding-block:22px 90px}
 .controls{display:grid;gap:12px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .label{font-size:.78rem;color:var(--muted);letter-spacing:.06em;font-weight:700;margin-inline-end:4px}
+.ghint{font-size:.78rem;color:var(--muted);margin-inline-start:4px;align-self:center}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:600;min-height:38px}
 .chip[aria-pressed="true"]{background:var(--palm);border-color:var(--palm);color:var(--surface)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
@@ -715,7 +716,16 @@ const SOC = [["talks","שיחות וימי עיון"],["army","צבא ושירו
 const SOC_L = Object.fromEntries(SOC);
 /* צבא ושירות: רק לשכבות י״א וי״ב */
 const ARMY_G = ["יא","יב"];
-function socList(){ return SOC.filter(([k])=>k!=="army"||ARMY_G.includes(S.grade)); }
+/* שכבות נבחרות: מערך של שכבות. מערך ריק = לוח כללי. אפשר לבחור כמה שכבות יחד */
+function loadGrades(){ const a=store.get("grades",null); if(Array.isArray(a)) return a; const g=store.get("grade","all"); return g&&g!=="all"?[g]:[]; }
+function saveGrades(){ store.set("grades",S.grades); }
+function setGrades(a){ S.grades=a; saveGrades(); }
+const gAll=()=>!S.grades.length;
+const oneG=()=>S.grades.length===0?"all":S.grades.length===1?S.grades[0]:null;
+const gHas=e=>e.grades.includes("all")||S.grades.some(g=>e.grades.includes(g));
+const armyOk=()=>S.grades.some(g=>ARMY_G.includes(g));
+function gradesLabel(){ return (S.grades.length>1?"שכבות ":"שכבת ")+S.grades.map(g=>GL[g]).join(" + "); }
+function socList(){ return SOC.filter(([k])=>k!=="army"||armyOk()); }
 function socTag(e){ const t=e.title;
   if(/הורים|תעודות|ערב סיכום|ערב סיום|ערב מהו"ת/.test(t)) return "parents";
   if(e.type==="trip"||/סיור|טיול|מסע|קמפוס|סמינר|שבוע נגב|נטיעות|פולין/.test(t)) return "trip";
@@ -740,7 +750,7 @@ const fmt = s=>{const d=pd(s);return d.getDate()+" ב"+MN[d.getMonth()]};
 const uid = ()=>Math.random().toString(36).slice(2,9);
 
 const S = {
-  grade: store.get("grade","all"), type: store.get("type","all"), soc: store.get("soc","all"), mode: store.get("mode2","month"),
+  grades: loadGrades(), type: store.get("type","all"), soc: store.get("soc","all"), mode: store.get("mode2","month"),
   calStart: weekStart(today), calRows: 5, selDay:(window.matchMedia&&matchMedia("(max-width:640px)").matches)?iso(today):null, showPast:false,
   editing:false, canEdit:false, dirty:false, openForm:null, showSubs:false,
   cap:{}
@@ -771,7 +781,7 @@ function openMenu(a){
   if(area==="students"){ /* pick a grade straight from the menu */
     const onCal=cur==="students";
     const items=[["all","לוח כללי"],...DATA.grades.map(g=>[g,"שכבת "+GL[g]]),["staff","צוות · כל האירועים"]];
-    menu.innerHTML=`<div class="mh">בחירת שכבה</div>`+items.map(([k,l])=>{const on=onCal&&(k==="staff"?S.type==="staff":(S.type!=="staff"&&S.grade===k));
+    menu.innerHTML=`<div class="mh">בחירת שכבה</div>`+items.map(([k,l])=>{const on=onCal&&(k==="staff"?S.type==="staff":(S.type!=="staff"&&(k==="all"?gAll():S.grades.length===1&&S.grades[0]===k)));
       return `<a role="menuitem" href="#students" data-pick="${k}" aria-current="${on?"page":"false"}">${esc(l)}</a>`}).join("")+
       `<hr>`+SUB.students.filter(k=>k!=="students").map(k=>`<a role="menuitem" href="#${k}" aria-current="${k===cur?"page":"false"}">${VIEWS[k].label}</a>`).join("");
   } else
@@ -791,8 +801,8 @@ document.querySelectorAll("nav.tabs a").forEach(a=>{
 });
 menu.addEventListener("click",ev=>{ const a=ev.target.closest("a"); if(!a) return;
   const k=a.dataset.pick;
-  if(k){ if(k==="staff"){S.grade="all";S.type="staff";} else {S.grade=k; if(S.type==="staff") S.type="all";}
-    store.set("grade",S.grade); store.set("type",S.type); S.selDay=null;
+  if(k){ if(k==="staff"){S.grades=[];S.type="staff";} else {S.grades=k==="all"?[]:[k]; if(S.type==="staff") S.type="all";}
+    saveGrades(); store.set("type",S.type); S.selDay=null;
     if(tab()==="students"){ev.preventDefault(); render();} }
   closeMenu(); });
 menu.addEventListener("keydown",ev=>{
@@ -815,15 +825,15 @@ document.querySelector("nav.tabs").addEventListener("scroll",closeMenu);
 function visible(e){
   if(S.type==="holiday") S.type="all";
   if(S.type==="staff"){ /* teachers' full picture: every grade's events plus staff events */
-    if(isStaff(e)||S.grade==="all") return true;
-    return e.grades.includes("all")||e.grades.includes(S.grade); }
+    if(isStaff(e)||gAll()) return true;
+    return gHas(e); }
   if(isStaff(e)) return false;
   if(S.type!=="all"){ if(S.type==="exam"&&e.type!=="exam") return false;
     if(S.type==="events"&&!(e.type==="event"||e.type==="trip")) return false;
     if(S.type==="events"&&S.soc!=="all"&&socTag(e)!==S.soc) return false;
     if(S.type==="holiday"&&e.type!=="holiday") return false; }
-  if(S.grade==="all") return e.cals ? (e.cals.includes("school")||e.cals.includes("holidays")) : e.grades.includes("all");
-  return e.grades.includes("all")||e.grades.includes(S.grade);
+  if(gAll()) return e.cals ? (e.cals.includes("school")||e.cals.includes("holidays")) : e.grades.includes("all");
+  return gHas(e);
 }
 function isStaff(e){return e.grades.length===1&&e.grades[0]==="staff"}
 function cls(e){return isStaff(e)?"staff":e.type}
@@ -914,34 +924,34 @@ function weekLabel(k){
   return `${s.getDate()}.${s.getMonth()+1} – ${e.getDate()}.${e.getMonth()+1}`;
 }
 function calendarView(){
-  if(S.soc==="army"&&!ARMY_G.includes(S.grade)) S.soc="all";
+  if(S.soc==="army"&&!armyOk()) S.soc="all";
   const g = ["all",...DATA.grades];
-  if(!g.includes(S.grade)) S.grade="all";
+  S.grades=S.grades.filter(x=>DATA.grades.includes(x));
   const evs = sorted().filter(visible);
   const soon = new Date(today); soon.setDate(today.getDate()+14);
   const exams = sorted().filter(e=>e.type==="exam"&&visible(e)&&pd(e.date)>=today&&pd(e.date)<=soon);
   let h = `<div class="controls">
-    <div class="row" role="group" aria-label="בחירת שכבה"><span class="label">שכבה</span>${g.map(x=>`<button class="chip" data-grade="${x}" aria-pressed="${S.grade===x}">${x==="all"?"לוח כללי":esc(GL[x])}</button>`).join("")}</div>
+    <div class="row" role="group" aria-label="בחירת שכבה"><span class="label">שכבה</span>${g.map(x=>`<button class="chip" data-grade="${x}" aria-pressed="${x==="all"?gAll():S.grades.includes(x)}">${x==="all"?"לוח כללי":esc(GL[x])}</button>`).join("")}<span class="ghint">אפשר לבחור כמה שכבות</span></div>
     <div class="row"><div class="seg" role="group" aria-label="סוג">${[["all","הכל"],["exam","מבחנים"],["events","חברתי"],["staff","צוות"]].map(([k,l])=>`<button data-type="${k}" aria-pressed="${S.type===k}">${l}</button>`).join("")}</div>
     <span class="spacer"></span><div class="seg" role="group" aria-label="תצוגה">${[["month","לוח חודשי"],["list","רשימת אירועים"]].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${S.mode===k}">${l}</button>`).join("")}</div></div>
     ${S.type==="events"?`<div class="subtags" role="group" aria-label="סוג אירוע חברתי">${[["all","הכל"]].concat(socList()).map(([k,l])=>`<button class="chip" data-soc="${k}" aria-pressed="${S.soc===k}">${l}</button>`).join("")}</div>`:""}
   </div>
-${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(S.grade==="all"?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
+${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(gAll()?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
   h += S.mode==="list" ? listView(evs) : monthView(evs);
   h += bagrutList();
-  if(S.type==="exam") h += `<section class="focus"><h2>מבחנים קרובים${S.grade!=="all"?" · שכבת "+esc(GL[S.grade]):""}</h2>
-    ${exams.length?`<div class="focus-list">${exams.map(e=>{const d=pd(e.date);return `<div class="exam-card ${canPlan(e)?"plannable":""}" ${canPlan(e)?`data-plan="${e.id}" role="button" tabindex="0" title="תכנון למידה למבחן"`:""}><span class="d">יום ${WD[d.getDay()]}, ${fmt(e.date)}</span><span class="t">${esc(e.title)}</span><span class="g">${e.grades.map(x=>GL[x]).join(", ")}</span></div>`}).join("")}</div>`:`<p class="empty">אין מבחנים בשבועיים הקרובים${S.grade==="all"?"":" לשכבה הזו"}.</p>`}
+  if(S.type==="exam") h += `<section class="focus"><h2>מבחנים קרובים${gAll()?"":" · "+esc(gradesLabel())}</h2>
+    ${exams.length?`<div class="focus-list">${exams.map(e=>{const d=pd(e.date);return `<div class="exam-card ${canPlan(e)?"plannable":""}" ${canPlan(e)?`data-plan="${e.id}" role="button" tabindex="0" title="תכנון למידה למבחן"`:""}><span class="d">יום ${WD[d.getDay()]}, ${fmt(e.date)}</span><span class="t">${esc(e.title)}</span><span class="g">${e.grades.map(x=>GL[x]).join(", ")}</span></div>`}).join("")}</div>`:`<p class="empty">אין מבחנים בשבועיים הקרובים${gAll()?"":S.grades.length>1?" לשכבות האלה":" לשכבה הזו"}.</p>`}
   </section>`;
   if(S.type==="events"){ const up=evs.filter(e=>pd(e.end||e.date)>=today).slice(0,12);
-    h += `<section class="focus soc"><h2>${S.soc==="all"?"אירועים חברתיים קרובים":"קרובים · "+esc(SOC_L[S.soc])}${S.grade!=="all"?" · שכבת "+esc(GL[S.grade]):""}</h2>
-    ${up.length?`<div class="focus-list">${up.map(e=>{const d=pd(e.date);return `<div class="exam-card soc-card"><span class="d">יום ${WD[d.getDay()]}, ${fmt(e.date)}${e.end?" – "+fmt(e.end):""}</span><span class="t">${esc(e.title)}</span><span class="g">${S.soc==="all"?esc(tagLabel(e))+" · ":""}${e.grades.map(x=>GL[x]).join(", ")}</span></div>`}).join("")}</div>`:`<p class="empty">אין אירועים קרובים מהסוג הזה${S.grade==="all"?"":" לשכבה הזו"}.</p>`}
+    h += `<section class="focus soc"><h2>${S.soc==="all"?"אירועים חברתיים קרובים":"קרובים · "+esc(SOC_L[S.soc])}${gAll()?"":" · "+esc(gradesLabel())}</h2>
+    ${up.length?`<div class="focus-list">${up.map(e=>{const d=pd(e.date);return `<div class="exam-card soc-card"><span class="d">יום ${WD[d.getDay()]}, ${fmt(e.date)}${e.end?" – "+fmt(e.end):""}</span><span class="t">${esc(e.title)}</span><span class="g">${S.soc==="all"?esc(tagLabel(e))+" · ":""}${e.grades.map(x=>GL[x]).join(", ")}</span></div>`}).join("")}</div>`:`<p class="empty">אין אירועים קרובים מהסוג הזה${gAll()?"":S.grades.length>1?" לשכבות האלה":" לשכבה הזו"}.</p>`}
   </section>`; }
   if(VIEWS[tab()].area==="students") h += `<section class="sig"><div class="sig-head"><h3>חיפוש בלוח</h3><input id="sigQ" type="search" placeholder="חיפוש אירוע, למשל: טיול, בגרות, חנוכה" value="${esc(S.sigQ||"")}" aria-label="חיפוש אירועים"></div><div id="sigRes"></div></section>`;
   return h;
 }
 /* yearly bagrut + matkonet list for יא / יב, under the calendar */
-function bagrutList(){
-  const g=S.grade; if(S.type==="staff"||(g!=="יא"&&g!=="יב")) return "";
+function bagrutList(){ return S.type==="staff"?"":S.grades.filter(g=>g==="יא"||g==="יב").map(bagrutOne).join(""); }
+function bagrutOne(g){
   const list=sorted().filter(e=>/בגר|מתכונ/.test(e.title)&&(e.grades.includes(g)||e.grades.includes("all")));
   if(!list.length) return "";
   const left=list.filter(e=>pd(e.date)>=today).length;
@@ -1011,12 +1021,12 @@ function gLink(e){
   return "https://calendar.google.com/calendar/render?"+p.toString();
 }
 function calLinks(){
-  const cid=DATA.gcal&&DATA.gcal[S.grade]; if(!cid) return "";
+  const cid=DATA.gcal&&DATA.gcal[oneG()]; if(!cid) return "";
   return `<a class="gcal-add" href="https://calendar.google.com/calendar/render?cid=${encodeURIComponent(cid)}" target="_blank" rel="noopener">+ הוספה ליומן Google</a>`;
 }
 function syncBar(){
-  const g=S.grade, cid=DATA.gcal&&DATA.gcal[g];
-  const name = g==="all"?"כל בית הספר":"שכבת "+GL[g];
+  const g=oneG(), cid=DATA.gcal&&DATA.gcal[g];
+  const name = gAll()?"כל בית הספר":gradesLabel();
   let h=`<section class="sync">`;
   if(cid) h+=`<a href="https://calendar.google.com/calendar/embed?src=${encodeURIComponent(cid)}&ctz=Asia%2FJerusalem&hl=iw" target="_blank" rel="noopener">פתיחה ביומן Google</a>`;
   h+=`</section>`;
@@ -1026,13 +1036,13 @@ function icsFor(){
   const esc2=s=>String(s||"").replace(/\\/g,"\\\\").replace(/([,;])/g,"\\$1").replace(/\n/g,"\\n");
   const ev=DATA.events.filter(visible);
   const stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
-  const name="שקד דרכא"+(S.grade==="all"?"":" — "+GL[S.grade]);
+  const name="שקד דרכא"+(gAll()?"":" — "+S.grades.map(g=>GL[g]).join(" + "));
   return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Shaked Darca//HE","CALSCALE:GREGORIAN","X-WR-CALNAME:"+esc2(name),"X-WR-TIMEZONE:Asia/Jerusalem",
     ...ev.flatMap(e=>["BEGIN:VEVENT","UID:"+e.id+"@shaked-darca","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+ymd(e.date),"DTEND;VALUE=DATE:"+ymd(nextDay(e.end||e.date)),"SUMMARY:"+esc2(e.title),"DESCRIPTION:"+esc2((e.note?e.note+"\n":"")+"שכבות: "+e.grades.map(g=>GL[g]).join(", ")),"CATEGORIES:"+TYPES[e.type],"END:VEVENT"]),
     "END:VCALENDAR"].join("\r\n");
 }
 async function downloadIcs(){
-  try{await S.cap.downloads.save({filename:"shaked-"+(S.grade==="all"?"all":S.grade)+".ics",data:new Blob([icsFor()],{type:"text/calendar"})})}catch(e){}
+  try{await S.cap.downloads.save({filename:"shaked-"+(gAll()?"all":S.grades.join("-"))+".ics",data:new Blob([icsFor()],{type:"text/calendar"})})}catch(e){}
 }
 function rangeTxt(e){const a=pd(e.date);let t=`${a.getDate()}.${a.getMonth()+1}`;if(e.end){const b=pd(e.end);t+=`–${b.getDate()}.${b.getMonth()+1}`}return t}
 function renderSig(){
@@ -1428,7 +1438,7 @@ function render(){
   document.querySelectorAll("nav.tabs a").forEach(a=>a.setAttribute("aria-current",a.dataset.area===area?"page":"false"));
   const note = DATA.sample?`<div class="sample-note"><b>תוכן לדוגמה.</b> השוקדים והעדכונים כאן להמחשה עד שיוזן התוכן האמיתי. האירועים בלוח השנה אמיתיים.</div>`:"";
   closeMenu();
-  const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${t==="students"?(S.type==="staff"?"צוות · כל האירועים":S.grade==="all"?"לוח כללי":"שכבת "+esc(GL[S.grade]||"")):VIEWS[t].label}</b></p>`:"";
+  const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${t==="students"?(S.type==="staff"?"צוות · כל האירועים":gAll()?"לוח כללי":esc(gradesLabel())):VIEWS[t].label}</b></p>`:"";
   const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,links:linksView,guides:guidesView}[t]();
   $("#view").innerHTML = `<div class="view">${note}${body}</div>`;
   $("#editbar").innerHTML = S.editing?`<div class="edit-bar"><b>מצב עריכה</b><span>${S.dirty?"יש שינויים שעוד לא פורסמו":"כל השינויים פורסמו"}</span><span class="spacer"></span>${DATA.sample?`<button class="btn" data-clear-sample>הסרת התוכן לדוגמה</button>`:""}<button class="btn" data-publish ${S.dirty?"":"disabled"}>פרסום השינויים</button><span class="msg" id="pubMsg" role="status" style="color:inherit"></span></div>`:"";
@@ -1444,7 +1454,7 @@ function changed(){S.dirty=true;render()}
 document.addEventListener("click",async ev=>{
   const b=ev.target.closest("button,[data-open-form],[data-plan]"); if(!b) return;
   const d=b.dataset;
-  if(d.grade){S.grade=d.grade;store.set("grade",S.grade);render()}
+  if(d.grade){ if(d.grade==="all") setGrades([]); else setGrades(S.grades.includes(d.grade)?S.grades.filter(x=>x!==d.grade):[...S.grades,d.grade].sort((a,b)=>DATA.grades.indexOf(a)-DATA.grades.indexOf(b))); S.selDay=null; render()}
   else if(d.type){S.type=d.type;S.soc="all";store.set("type",S.type);store.set("soc","all");render()}
   else if(d.soc){S.soc=d.soc;store.set("soc",S.soc);render()}
   else if(d.tagpick){const [t,s]=d.tagpick.split(":");S.type=t;S.soc=s||"all";store.set("type",S.type);store.set("soc",S.soc);render();const c=document.querySelector(".controls");if(c)c.scrollIntoView({behavior:"smooth",block:"start"})}
@@ -1489,9 +1499,9 @@ document.addEventListener("click",async ev=>{
   else if(d.plan){ev.stopPropagation();openPlanner(d.plan)}
   else if(d.editPost){S.editPost=d.editPost;render()}
   else if("cancelEdit" in d){S.editPost=null;render()}
-  else if(d.myGrade){store.set("myGrade",d.myGrade);if(d.myGrade!=="staff"){S.grade=d.myGrade;store.set("grade",S.grade)}render()}
+  else if(d.myGrade){store.set("myGrade",d.myGrade);if(d.myGrade!=="staff"){setGrades([d.myGrade])}render()}
   else if("myChange" in d){store.set("myGrade",null);render()}
-  else if("goCal" in d){const g=store.get("myGrade",null);if(g==="staff"){S.grade="all";S.type="staff"}else if(g){S.grade=g;if(S.type==="staff")S.type="all"}store.set("grade",S.grade);store.set("type",S.type);location.hash="students"}
+  else if("goCal" in d){const g=store.get("myGrade",null);if(g==="staff"){S.grades=[];S.type="staff"}else if(g){S.grades=[g];if(S.type==="staff")S.type="all"}saveGrades();store.set("type",S.type);location.hash="students"}
   else if(d.issue){openViewer(d.issue,Number(d.page))}
   else if(d.pdf){const p=DATA.posts.find(x=>x.id===d.pdf), m=document.getElementById("pdfMsg-"+d.pdf);
     try{const blob=await fetch(p.pdf).then(r=>{if(!r.ok)throw 0;return r.blob()});
@@ -1573,7 +1583,7 @@ document.addEventListener("submit",async ev=>{
     if($("#eTo")) p.toc=$("#eTo").value.split("\n").map(s=>s.trim()).filter(Boolean);
     S.editPost=null; changed();
   } else if(f.id==="gcalForm"){
-    DATA.gcal=DATA.gcal||{}; const v=$("#gcalId").value.trim(); if(v) DATA.gcal[S.grade]=v; else delete DATA.gcal[S.grade]; changed();
+    DATA.gcal=DATA.gcal||{}; const v=$("#gcalId").value.trim(); const og=oneG(); if(og){ if(v) DATA.gcal[og]=v; else delete DATA.gcal[og]; } changed();
   } else if(f.id==="newsForm"){
     (DATA.news=DATA.news||[]).push({id:uid(),date:iso(today),text:$("#nText").value.trim()});changed();
   } else if(f.dataset.place){
