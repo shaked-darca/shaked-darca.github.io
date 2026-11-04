@@ -1181,7 +1181,7 @@ function cpForm(days){
     <div class="row"><button class="btn" type="submit" ${CP.busy?"disabled":""}>${CP.busy?"שולח…":E?"שמירת השינויים":"הזמנה"}</button><button class="btn ghost" type="button" data-cpclose>סגירה</button></div>
   </form>`;
 }
-/* הקפאה של הזמנה קבועה: כל אחד יכול, עם שם לאישור */
+/* הקפאה מהאתר בוטלה – רק אחראי המחשבים מקפיא, בטבלה */
 function cpFreezeBox(day,l){
   const F=CP.fz; if(!F||F.wd!==day.wd||F.row!==l.row) return "";
   return `<form class="cp-fz" id="cpFz"><p>${F.to?`להקפיא את ההזמנה הקבועה של <b>${esc(F.who)}</b> ב${esc(l.name)}? המחשבים שלה יוצגו כפנויים, וההזמנה תיצבע באדום בטבלה.`:`לבטל את ההקפאה של ההזמנה של <b>${esc(F.who)}</b> ב${esc(l.name)}? המחשבים שלה יחזרו להיות תפוסים.`}</p>
@@ -1206,7 +1206,7 @@ function computersView(){
   const week=first&&last?`השבוע שבטבלה: ${shortDate(first)} עד ${shortDate(last)}`:"השבוע שבטבלה";
   const mine=cpMine();
   const item=(b,l)=>{const cart=b.col===CART_COL;const k=mine.findIndex(m=>m.date===day.date&&m.row===l.row&&m.col===b.col&&m.who===b.who&&m.what===b.what);
-    return `<span class="cp-item ${b.frozen?"frozen":b.fixed?"fixed":""} ${cart?"cart":""} ${k>=0?"mine":""}"><b>${esc(b.who||"—")}</b>${cart?`<span>מפתח עגלה · אורן</span>`:b.what?`<bdi dir="rtl">${esc(b.what.replace(/\s*\+\s*/g," + "))}</bdi>`:""}${b.frozen?`<span class="tag ice">מוקפא – פנוי</span>`:b.fixed?`<span class="tag">קבוע</span>`:""}${b.fixed&&!CP.form?`<button class="fz" data-cpfreeze="${l.row}:${b.col}" aria-label="${b.frozen?"ביטול ההקפאה":"הקפאת ההזמנה הקבועה"} של ${esc(b.who)}">${b.frozen?"ביטול הקפאה":"הקפאה"}</button>`:""}${k>=0?`<button class="ed" data-cpedit="${k}" data-fx="${b.fixed?1:0}" aria-label="עריכת ההזמנה שלי">עריכה</button><button data-cpcancel="${k}" aria-label="ביטול ההזמנה שלי">×</button>`:""}</span>`};
+    return `<span class="cp-item ${b.frozen?"frozen":b.fixed?"fixed":""} ${cart?"cart":""} ${k>=0?"mine":""}"><b>${esc(b.who||"—")}</b>${cart?`<span>מפתח עגלה · אורן</span>`:b.what?`<bdi dir="rtl">${esc(b.what.replace(/\s*\+\s*/g," + "))}</bdi>`:""}${b.frozen?`<span class="tag ice">מוקפא – פנוי</span>`:b.fixed?`<span class="tag">קבוע</span>`:""}${k>=0?`<button class="ed" data-cpedit="${k}" data-fx="${b.fixed?1:0}" aria-label="עריכת ההזמנה שלי">עריכה</button><button data-cpcancel="${k}" aria-label="ביטול ההזמנה שלי">×</button>`:""}</span>`};
   return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>מה כבר הוזמן השבוע, לפי הטבלה של אחראי המחשבים</p></div>
   <div class="cp">
     <div class="cp-top"><span class="cp-week">${week}</span><div class="cp-actions">${CP.form?"":`<button class="btn" data-cpnew="laptops">הזמנת מחשבים ניידים</button><button class="btn" data-cpnew="cart">הזמנת עגלת המחשבים בבית אורן</button>`}<a class="btn ghost" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">פתיחת הטבלה</a></div></div>

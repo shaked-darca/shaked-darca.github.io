@@ -231,7 +231,7 @@ function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
     lock.waitLock(15000);
-    out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : req.action === "freeze" ? freeze_(req) : book_(req);
+    out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : req.action === "freeze" ? {ok:false,error:"הקפאה אפשרית רק בטבלה, על ידי אחראי המחשבים"} : book_(req);
     CacheService.getScriptCache().remove(COMPUTERS_KEY);
     out.data = JSON.parse(buildComputers_());
   } catch (err) {
