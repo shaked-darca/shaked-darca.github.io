@@ -1293,6 +1293,10 @@ function shortDate(s){if(!s)return"";const[y,m,d]=s.split("-").map(Number);retur
 function computersView(){
   loadComp();
   const link=`<a class="btn" href="${esc(DATA.computersUrl)}" target="_blank" rel="noopener">להזמנה – פתיחת הטבלה</a>`;
+  /* זמני: ההזמנה דרך האתר מושבתת עד שנתקן. להחזרה – לשנות ל-false */
+  const CP_PAUSED=true;
+  if(CP_PAUSED) return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>למורים</p></div>
+    <section class="place" style="max-width:560px"><p style="margin:0;color:var(--muted)">ההזמנה דרך האתר מושבתת זמנית. בינתיים מזמינים ישירות בטבלה של אחראי המחשבים.</p><div>${link}</div></section>`;
   const D=CP.data;
   if(!D||!D.days||!D.days.length){
     return `<div class="masthead"><h2>הזמנת מחשבים</h2><p>למורים</p></div>
