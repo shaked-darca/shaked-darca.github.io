@@ -262,6 +262,16 @@ function book_(req) {
   if (!fixed && date && date < fmt_(new Date(), "yyyy-MM-dd")) throw new Error("היום הזה כבר עבר");
   const stamp = SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm");
   const results = [];
+  // שיעורים עוקבים באותה הזמנה נרשמים באותה עמודה – אחד מתחת לשני, כדי שהטבלה תהיה קריאה.
+  // מחפשים עמודה שפנויה בכל השיעורים שנבחרו; אם אין כזו – ההזמנה נדחית ולא מפוזרת בין עמודות.
+  const isFree = (line, c) => line && !String(line[c] || "").trim() && !String(line[c + 1] || "").trim();
+  let shared = -1;
+  if (what) {
+    for (let c = COMP_FIRST; c <= COMP_LAST; c += 2) {
+      if (rows.every(r => isFree(vals[r], c))) { shared = c; break; }
+    }
+    if (shared < 0) return { ok: false, date, results: rows.map(r => ({ row: r, ok: false, msg: "אין עמודה אחת שפנויה בכל השיעורים שנבחרו – אפשר להזמין כל שיעור בנפרד או לפנות לאחראי המחשבים" })) };
+  }
   rows.forEach(r => {
     const line = vals[r];
     if (!line || !/שיעור/.test(line[0])) { results.push({ row: r, ok: false, msg: "השיעור לא נמצא" }); return; }
@@ -272,13 +282,7 @@ function book_(req) {
         res.ok = false; res.msg = "העגלה באורן כבר תפוסה";
       }
     }
-    let free = -1;
-    if (res.ok && what) {
-      for (let c = COMP_FIRST; c <= COMP_LAST; c += 2) {
-        if (!String(line[c] || "").trim() && !String(line[c + 1] || "").trim()) { free = c; break; }
-      }
-      if (free < 0) { res.ok = false; res.msg = "אין מקום פנוי בשורה של השיעור"; }
-    }
+    const free = shared;
     if (res.ok) {
       if (what) { put_(sh, r, free, who, what, stamp, fixed); res.refs.push({ col: free, who, what }); }
       if (cart) { put_(sh, r, CART_COL, who, "אורן", stamp, fixed); res.refs.push({ col: CART_COL, who, what: "אורן" }); }
