@@ -20,6 +20,13 @@
  *
  * הסקריפט גם קורא את טבלת הזמנת המחשבים (‎/exec?what=computers), ומקבל הזמנות מהאתר:
  * כותב כל הזמנה בזוג העמודות הפנוי הראשון, ומפתח עגלת אורן בעמודות שלו.
+ *
+ * תזכורות לבגרויות: תלמידים מפעילים באתר התראות לשכבה שלהם. האתר שולח לכאן "כתובת" של הטלפון
+ * (token), והסקריפט שומר אותה בגיליון "מנויי התראות בגרויות" (בלי שמות). פעם ביום, ב-17:00,
+ * bagrutReminders בודק אילו בגרויות יוצאות בעוד חודש ושולח התראה דרך Firebase.
+ * כדי שזה יעבוד צריך להדביק פעם אחת את מפתח השירות של Firebase:
+ *   הגדרות הפרויקט (גלגל השיניים) ← מאפייני סקריפט ← הוספה: שם FCM_SA, ערך: כל התוכן של קובץ ה-JSON.
+ * בדיקה: אחרי שהפעלתם התראות בטלפון שלכם, מריצים testPush – ההתראה נשלחת לטלפון האחרון שנרשם.
  */
 
 const TZ = "Asia/Jerusalem";
@@ -58,6 +65,12 @@ const COMPUTERS_SECONDS = 2 * 60;
 const COMP_FIRST = 1, COMP_LAST = 25, CART_COL = 27, CRT5_COL = 29;
 const SITE_NOTE = "הוזמן מהאתר";
 
+/* תזכורות לבגרויות */
+const REMIND_DAYS = [30];          // כמה ימים לפני כל בגרות שולחים. אפשר להוסיף, למשל [30, 7, 1]
+const REMIND_HOUR = 17;            // באיזו שעה ביום שולחים
+const PUSH_GRADES = ["י", "יא", "יב"];
+const SITE_URL = "https://shaked-darca.github.io/";
+
 /* ---------- web app ---------- */
 
 // ‎/exec            → אירועי היומנים
@@ -95,6 +108,14 @@ function setup() {
   } catch (err) {
     Logger.log("אין גישה לטבלת המחשבים. צריך לשתף אותה עם החשבון הזה, עם הרשאת עריכה. " + err);
   }
+  // תזכורות לבגרויות: גיליון המנויים ובדיקה יומית
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === "bagrutReminders") ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger("bagrutReminders").timeBased().everyDays(1).atHour(REMIND_HOUR).inTimezone(TZ).create();
+  const subs = pushSheet_();
+  Logger.log("גיליון מנויי ההתראות: " + subs.getParent().getUrl() + " (" + (subs.getLastRow() - 1) + " מנויים)");
+  Logger.log(PropertiesService.getScriptProperties().getProperty("FCM_SA")
+    ? "מפתח Firebase קיים – ההתראות יישלחו כל יום ב-" + REMIND_HOUR + ":00"
+    : "עוד חסר מפתח Firebase (FCM_SA במאפייני הסקריפט). בלעדיו נרשמים, אבל לא נשלחות התראות.");
 }
 
 /** רץ אוטומטית כל 10 דקות, כדי שהאתר תמיד יקבל תשובה מהירה ועדכנית. */
@@ -231,6 +252,9 @@ function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
     lock.waitLock(15000);
+    if (req.action === "push-on" || req.action === "push-off") {
+      return ContentService.createTextOutput(JSON.stringify(pushSub_(req))).setMimeType(ContentService.MimeType.JSON);
+    }
     out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : req.action === "freeze" ? {ok:false,error:"הקפאה אפשרית רק בטבלה, על ידי אחראי המחשבים"} : book_(req);
     CacheService.getScriptCache().remove(COMPUTERS_KEY);
     out.data = JSON.parse(buildComputers_());
@@ -403,6 +427,137 @@ function heb_(t) {
     else if (/[֐-׿]/.test(base)) out.push(base);
   });
   return out.filter((v, i) => out.indexOf(v) === i).join(" / ");
+}
+
+/* ---------- bagrut reminders ---------- */
+
+// הגיליון שבו נשמרים המנויים: token | שכבה | נרשם | עודכן. נוצר לבד בפעם הראשונה.
+function pushSheet_() {
+  const p = PropertiesService.getScriptProperties();
+  let ss = null;
+  const id = p.getProperty("PUSH_SHEET");
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (x) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create('מנויי התראות בגרויות – אתר שק"ד דרכא');
+    const sh = ss.getSheets()[0];
+    sh.appendRow(["token", "שכבה", "נרשם", "עודכן"]);
+    sh.setFrozenRows(1);
+    p.setProperty("PUSH_SHEET", ss.getId());
+  }
+  return ss.getSheets()[0];
+}
+
+// האתר שולח {action:"push-on"|"push-off", token, grade}
+function pushSub_(req) {
+  const token = String(req.token || "").trim(), g = String(req.grade || "");
+  if (!/^[A-Za-z0-9_:.\-]{20,500}$/.test(token)) return { ok: false, error: "כתובת התראות לא תקינה" };
+  if (PUSH_GRADES.indexOf(g) < 0) return { ok: false, error: "שכבה לא מוכרת" };
+  const sh = pushSheet_(), rows = sh.getDataRange().getValues(), now = new Date();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i][0] === token && String(rows[i][1]) === g) {
+      if (req.action === "push-off") sh.deleteRow(i + 1); else sh.getRange(i + 1, 4).setValue(now);
+      return { ok: true };
+    }
+  }
+  if (req.action === "push-on") sh.appendRow([token, g, now, now]);
+  return { ok: true };
+}
+
+/** רץ אוטומטית כל יום ב-17:00: שולח התראה על כל בגרות שיוצאת בעוד חודש (לפי REMIND_DAYS). */
+function bagrutReminders() {
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty("FCM_SA")) { Logger.log("חסר FCM_SA – לא נשלח כלום"); return; }
+  const sh = pushSheet_();
+  const subs = sh.getDataRange().getValues().slice(1).filter(r => r[0]);
+  if (!subs.length) { Logger.log("אין עדיין מנויים"); return; }
+  const events = JSON.parse(readCache_() || build_()).events;
+  const todayS = day_(new Date());
+  const gone = {};
+  let sent = 0;
+  events.forEach(ev => {
+    if (!/בגר/.test(ev.title) || /מתכונ/.test(ev.title)) return;
+    const left = daysBetween_(todayS, ev.date);
+    REMIND_DAYS.forEach(d => {
+      // שולחים ביום הנכון, ואם פספסנו יום (תקלה), גם ביומיים שאחריו
+      if (!(left <= d && left > Math.max(d - 3, 0))) return;
+      const key = "sent:" + ev.id + ":" + d;
+      if (props.getProperty(key)) return;
+      const tokens = {};
+      subs.forEach(r => {
+        const g = String(r[1]);
+        if (ev.grades.indexOf(g) >= 0 || ev.grades.indexOf("all") >= 0) tokens[r[0]] = true;
+      });
+      const title = "📚 " + ev.title;
+      const body = (left === 30 ? "בעוד חודש" : left === 1 ? "מחר" : "בעוד " + left + " ימים") +
+        " – " + hebDay_(ev.date) + ". זה הזמן להתחיל לתכנן למידה.";
+      Object.keys(tokens).forEach(t => {
+        const res = sendPush_(t, title, body, SITE_URL, ev.id);
+        if (res === "ok") sent++;
+        else if (res === "gone") gone[t] = true;
+      });
+      props.setProperty(key, todayS);
+      Logger.log("נשלח: " + ev.title + " (" + ev.date + ") ל-" + Object.keys(tokens).length + " טלפונים");
+    });
+  });
+  // טלפונים שהסירו את האפליקציה או חסמו התראות – מוחקים מהגיליון
+  const rows = sh.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) if (gone[rows[i][0]]) sh.deleteRow(i + 1);
+  Logger.log("סה״כ התראות שנשלחו היום: " + sent);
+}
+
+/** בדיקה: שולח התראה לטלפון האחרון שנרשם להתראות. */
+function testPush() {
+  const rows = pushSheet_().getDataRange().getValues();
+  if (rows.length < 2) { Logger.log("אין עדיין אף טלפון רשום. קודם מפעילים התראות באתר."); return; }
+  const last = rows[rows.length - 1];
+  Logger.log("נשלח לטלפון של שכבת " + last[1] + ": " +
+    sendPush_(last[0], "בדיקה ✓", 'ההתראות של אתר שק"ד דרכא עובדות.', SITE_URL, "test"));
+}
+
+// שליחה דרך Firebase Cloud Messaging. מחזיר "ok", "gone" (הטלפון כבר לא רשום) או "error".
+function sendPush_(token, title, body, url, tag) {
+  const sa = JSON.parse(PropertiesService.getScriptProperties().getProperty("FCM_SA"));
+  const r = UrlFetchApp.fetch("https://fcm.googleapis.com/v1/projects/" + sa.project_id + "/messages:send", {
+    method: "post",
+    contentType: "application/json",
+    headers: { Authorization: "Bearer " + fcmAccess_(sa) },
+    payload: JSON.stringify({ message: { token: token,
+      data: { title: title, body: body, url: url || SITE_URL, tag: String(tag || "") },
+      webpush: { headers: { Urgency: "high", TTL: "172800" } } } }),
+    muteHttpExceptions: true
+  });
+  const code = r.getResponseCode(), text = r.getContentText();
+  if (code === 200) return "ok";
+  if (code === 404 || /UNREGISTERED/.test(text)) return "gone";
+  Logger.log("Firebase " + code + ": " + text);
+  return "error";
+}
+
+// כניסה ל-Firebase עם מפתח השירות (חתימה דיגיטלית), לשעה. נשמר בזיכרון כדי לא לבקש בכל שליחה.
+function fcmAccess_(sa) {
+  const c = CacheService.getScriptCache(), hit = c.get("fcm-access");
+  if (hit) return hit;
+  const now = Math.floor(Date.now() / 1000);
+  const b64 = s => Utilities.base64EncodeWebSafe(s).replace(/=+$/, "");
+  const input = b64(JSON.stringify({ alg: "RS256", typ: "JWT" })) + "." + b64(JSON.stringify({
+    iss: sa.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
+  const sig = b64(Utilities.computeRsaSha256Signature(input, sa.private_key));
+  const r = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", { method: "post", muteHttpExceptions: true,
+    payload: { grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: input + "." + sig } });
+  const j = JSON.parse(r.getContentText());
+  if (!j.access_token) throw new Error("כניסה ל-Firebase נכשלה: " + r.getContentText());
+  c.put("fcm-access", j.access_token, 3000);
+  return j.access_token;
+}
+
+function daysBetween_(a, b) {
+  const p = s => { const x = s.split("-").map(Number); return Date.UTC(x[0], x[1] - 1, x[2]); };
+  return Math.round((p(b) - p(a)) / 86400000);
+}
+function hebDay_(s) {
+  const x = s.split("-").map(Number), d = new Date(Date.UTC(x[0], x[1] - 1, x[2]));
+  return "יום " + "אבגדהוש"[d.getUTCDay()] + "׳, " + x[2] + "." + x[1];
 }
 
 /* ---------- helpers ---------- */

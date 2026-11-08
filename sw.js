@@ -49,3 +49,31 @@ self.addEventListener("fetch", e => {
     );
   }
 });
+
+/* Bagrut reminders: the school's Apps Script sends a message through Firebase, and this shows it on the phone,
+   even when the site is closed. Tapping it opens the site. */
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) {}
+  const m = Object.assign({}, d.notification || {}, d.data || {});
+  e.waitUntil(self.registration.showNotification(m.title || "שק״ד דרכא", {
+    body: m.body || "",
+    icon: "icons/icon-192.png",
+    badge: "icons/icon-192.png",
+    dir: "rtl",
+    lang: "he",
+    tag: m.tag || undefined,
+    data: { url: m.url || "./" }
+  }));
+});
+
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "./", self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+    for (const c of list) {
+      if (c.url.startsWith(self.registration.scope) && "focus" in c) return c.focus();
+    }
+    return self.clients.openWindow(url);
+  }));
+});
