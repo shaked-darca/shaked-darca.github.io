@@ -1117,8 +1117,8 @@ function bagrutOne(g){
 const SIG = [[/טיול שנתי/,"טיול שנתי"],[/מסע(ות)? בנ(ים|ות)/,"מסע"],[/מסע בשביל/,"מסע"],[/פולין/,"פולין"],
   [/תכנית יא/,"תכנית יא"],[/^טריאתלון/,"טריאתלון"],[/קורס מד"?א/,"קורס מד״א"]];
 const sigKind = e=>{const r=SIG.find(([re])=>re.test(e.title)); return r?r[1]:"";};
-/* events of a grade; a whole-school event counts too, except פולין which belongs to יא-יב only */
-const forGrade = (e,g)=>e.grades.includes(g)||(e.grades.includes("all")&&(!/פולין/.test(e.title)||ARMY_G.includes(g)));
+/* events of a grade; a whole-school event counts too. פולין belongs to יא only */
+const forGrade = (e,g)=>/פולין/.test(e.title)?g==="יא":e.grades.includes(g)||e.grades.includes("all");
 /* a course spread over a few single days (קורס מד״א) becomes one row */
 function joinDays(list){ const out=[];
   list.forEach(e=>{const p=out[out.length-1];
