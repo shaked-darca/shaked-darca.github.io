@@ -478,6 +478,20 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .myweek .bg-remind{margin-top:4px}
 .push-toast{position:fixed;inset:auto 12px calc(16px + env(safe-area-inset-bottom,0px)) 12px;z-index:60;max-width:460px;margin-inline:auto;background:#16201e;color:#fff;border-radius:12px;padding:14px 18px;line-height:1.5;box-shadow:0 10px 40px rgba(0,0,0,.3);opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s}
 .push-toast.on{opacity:1;transform:none}
+.nt-back{position:fixed;inset:0;z-index:55;background:rgba(10,20,18,.45);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s}
+.nt-back.on{opacity:1}
+.nt-pop{background:var(--surface);color:var(--ink,#16201e);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:14px;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+@media (min-width:600px){.nt-back{align-items:center}.nt-pop{border-radius:16px}}
+.nt-head{display:flex;align-items:center;gap:10px}.nt-head h2{margin:0;font-size:1.2rem;flex:1;color:var(--palm)}
+.nt-sec h3{margin:0 0 4px;font-size:1rem}.nt-hint{margin:0 0 8px;color:var(--muted);font-size:.88rem}
+.nt-chips{display:flex;flex-wrap:wrap;gap:6px}
+.nt-topics{display:grid;gap:6px}
+.nt-topic{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.nt-topic input{width:20px;height:20px;margin:0;accent-color:var(--water)}
+.nt-topic small{color:var(--muted);white-space:nowrap}
+.nt-topic:has(input:checked){border-color:var(--water);background:var(--exam-soft)}
+.nt-err{margin:0;color:var(--exam);font-weight:700;min-height:0}.nt-err:empty{display:none}
+.nt-acts{display:flex;flex-wrap:wrap;gap:8px}.nt-acts .btn{flex:1 1 auto}.nt-acts .btn.danger{flex:0 0 100%;min-height:40px}
 @media (max-width:560px){.bg-remind .bg-r-acts{margin-inline-start:0;width:100%}.bg-remind .btn{flex:1}}
 /* staff events */
 :root{--staff:#6a48a8;--staff-soft:#ece5f7}
@@ -1091,20 +1105,48 @@ function bagrutOne(g){
 }
 document.addEventListener("toggle",ev=>{if(ev.target.classList&&ev.target.classList.contains("bagrut"))store.set("bagOpen",ev.target.open)},true);
 
-/* ---------- bagrut reminders: a push notification a month before, or the bagruyot in the phone's calendar ----------
+/* ---------- notifications: each phone picks grades and topics, and gets a reminder before those events ----------
    Push: the page asks Firebase (Google's free push service) for an address for this phone, and sends it with the
-   grade to the school's Apps Script. Once a day the Apps Script checks the calendars and sends the reminders.
-   PUSH stays empty until the Firebase project is set up; until then only "הוספה ליומן" shows. */
+   chosen grades and topics to the school's Apps Script. Once a day at 17:00 the Apps Script checks the calendars
+   and sends the reminders. The same choice can instead go into the phone's own calendar, with alarms.
+   PUSH stays empty until the Firebase project is set up; until then only "הוספה ליומן" shows.
+   The topics and their timing must match TOPICS in scripts/apps-script/Code.gs. */
 const PUSH = {apiKey:"", authDomain:"", projectId:"", messagingSenderId:"", appId:"", vapidKey:""};
 const BAG_GRADES = ["י","יא","יב"];
+const NTOPICS = [
+  {k:"bagrut",  l:"בגרויות",                         d:[30],  w:"חודש לפני"},
+  {k:"exams",   l:"מבחנים ומתכונות",                  d:[7],   w:"שבוע לפני"},
+  {k:"trips",   l:"טיולים וסיורים",                   d:[7,1], w:"שבוע לפני ויום לפני"},
+  {k:"social",  l:"אירועים חברתיים",                  d:[1],   w:"יום לפני"},
+  {k:"holidays",l:"חופשות וחגים",                     d:[1],   w:"יום לפני"},
+  {k:"staff",   l:"צוות: ישיבות, מופ״ד, ימי עיון",     d:[1],   w:"יום לפני", staff:true}
+];
 const pushReady = ()=>!!(PUSH.apiKey&&PUSH.vapidKey&&CAL_URL);
-const isBagrut = e=>/בגר/.test(e.title)&&!/מתכונ/.test(e.title);
-function upcomingBagrut(g){return sorted().filter(e=>isBagrut(e)&&(e.grades.includes(g)||e.grades.includes("all"))&&pd(e.end||e.date)>=today)}
-function pushLabel(on){return on?"התראות פעילות ✓ · כיבוי":"הפעלת התראות"}
+function topicOf(e){
+  if(isStaff(e)) return "staff";
+  if(e.type==="holiday") return "holidays";
+  if(/בגר/.test(e.title)&&!/מתכונ/.test(e.title)) return "bagrut";
+  if(e.type==="exam") return "exams";
+  if(e.type==="trip") return "trips";
+  return "social";
+}
+/* the events a choice covers: the topic was picked, and the event belongs to a picked grade (or to the whole school) */
+function notifyEvents(p){
+  return sorted().filter(e=>{
+    const t=topicOf(e); if(!p.topics.includes(t)) return false;
+    if(t==="staff") return p.grades.includes("staff");
+    return e.grades.includes("all")||e.grades.some(g=>p.grades.includes(g));
+  }).filter(e=>pd(e.end||e.date)>=today);
+}
+const nPrefs = ()=>store.get("notify",null);           // {grades,topics,push} once saved on this phone
+function nDefaults(g){
+  const gs=g&&g!=="all"?[g]:[];
+  return {grades:gs, topics:g==="staff"?["staff","holidays"]:BAG_GRADES.includes(g)?["bagrut","exams","trips"]:["exams","trips"], push:false};
+}
 function remindBar(g){
-  if(!upcomingBagrut(g).length) return "";
-  const on=store.get("push:"+g,false);
-  return `<div class="bg-remind"><span class="bg-r-t"><span aria-hidden="true">🔔</span> תזכורת חודש לפני כל בגרות · ${esc(GL[g])}</span><span class="bg-r-acts">${pushReady()?`<button type="button" class="btn ${on?"ghost":""}" data-push="${g}" aria-pressed="${on}">${pushLabel(on)}</button>`:""}<button type="button" class="btn ghost" data-bag-ics="${g}">הוספה ליומן</button></span></div>`;
+  const p=nPrefs(), on=p&&p.push;
+  const what=on?NTOPICS.filter(t=>p.topics.includes(t.k)).map(t=>t.l.split(":")[0]).join(", "):"";
+  return `<div class="bg-remind"><span class="bg-r-t"><span aria-hidden="true">🔔</span> ${on?`התראות פעילות: ${esc(what)}`:"התראות לפני בגרויות, מבחנים, טיולים ועוד"}</span><span class="bg-r-acts"><button type="button" class="btn ${on?"ghost":""}" data-notify="${esc(g||"")}">${on?"עריכה":"בחירת התראות"}</button></span></div>`;
 }
 function pushToast(msg){
   document.querySelectorAll(".push-toast").forEach(t=>t.remove());
@@ -1113,26 +1155,68 @@ function pushToast(msg){
   setTimeout(()=>{t.classList.remove("on");setTimeout(()=>t.remove(),300)},6500);
 }
 
-/* the calendar file: every coming bagrut of the grade, with an alarm 30 days before at 9:00 */
-function bagrutIcsText(g){
+/* the choice window */
+function openNotify(g){
+  closeNotify();
+  const p=Object.assign({},nPrefs()||nDefaults(g)); p.grades=p.grades.slice(); p.topics=p.topics.slice();
+  const w=document.createElement("div"); w.className="nt-back";
+  w.innerHTML=`<div class="nt-pop" role="dialog" aria-modal="true" aria-labelledby="ntTitle">
+    <div class="nt-head"><h2 id="ntTitle">על מה לקבל התראות?</h2><button type="button" class="iconbtn" data-nt-close aria-label="סגירה">×</button></div>
+    <div class="nt-sec"><h3>שכבה</h3><p class="nt-hint">אפשר לבחור כמה. מורים בוחרים "צוות", ואם רוצים גם שכבה.</p><div class="nt-chips">${[...DATA.grades,"staff"].map(x=>`<button type="button" class="chip" data-nt-grade="${x}" aria-pressed="${p.grades.includes(x)}">${esc(GL[x])}</button>`).join("")}</div></div>
+    <div class="nt-sec"><h3>נושאים</h3><div class="nt-topics"></div></div>
+    <p class="nt-err" role="alert"></p>
+    <div class="nt-acts">${pushReady()?`<button type="button" class="btn" data-nt-push>${p.push?"שמירת השינויים":"הפעלת התראות בטלפון"}</button>`:""}<button type="button" class="btn ghost" data-nt-ics>הוספה ליומן בטלפון</button>${p.push&&pushReady()?`<button type="button" class="btn danger" data-nt-off>כיבוי ההתראות</button>`:""}</div>
+  </div>`;
+  const topics=()=>{
+    const staff=p.grades.includes("staff");
+    if(!staff) p.topics=p.topics.filter(k=>k!=="staff");
+    w.querySelector(".nt-topics").innerHTML=NTOPICS.filter(t=>!t.staff||staff).map(t=>`<label class="nt-topic"><input type="checkbox" data-nt-topic="${t.k}" ${p.topics.includes(t.k)?"checked":""}><span>${esc(t.l)}</span><small>${t.w}</small></label>`).join("");
+  };
+  topics();
+  const err=m=>{w.querySelector(".nt-err").textContent=m||""};
+  const valid=()=>{ if(!p.grades.length){err("בחרו לפחות שכבה אחת, או צוות.");return false} if(!p.topics.length){err("סמנו לפחות נושא אחד.");return false} err();return true };
+  w.addEventListener("click",async ev=>{
+    const b=ev.target.closest("button,input"); if(ev.target===w||b&&"ntClose" in b.dataset){closeNotify();return}
+    if(!b) return;
+    if("ntGrade" in b.dataset){const x=b.dataset.ntGrade,i=p.grades.indexOf(x); if(i<0)p.grades.push(x); else p.grades.splice(i,1); b.setAttribute("aria-pressed",i<0); topics(); err(); return}
+    if("ntTopic" in b.dataset){const x=b.dataset.ntTopic,i=p.topics.indexOf(x); if(b.checked&&i<0)p.topics.push(x); if(!b.checked&&i>=0)p.topics.splice(i,1); err(); return}
+    if("ntIcs" in b.dataset){ if(valid()) notifyIcs(p); return }
+    if("ntPush" in b.dataset){ if(valid()) savePush(p,b); return }
+    if("ntOff" in b.dataset){ savePush(Object.assign({},p,{topics:[]}),b,true); return }
+  });
+  document.addEventListener("keydown",ntKey);
+  document.body.appendChild(w);
+  requestAnimationFrame(()=>{w.classList.add("on"); const f=w.querySelector("[data-nt-close]"); if(f) f.focus()});
+}
+function ntKey(e){ if(e.key==="Escape") closeNotify() }
+function closeNotify(){ document.querySelectorAll(".nt-back").forEach(x=>x.remove()); document.removeEventListener("keydown",ntKey) }
+
+/* the calendar file: every coming event of the choice, each with its alarms (17:00, a month / a week / a day before) */
+function notifyIcsText(p){
   const d8=x=>x.replace(/-/g,"");
   const next=x=>{const d=pd(x);d.setDate(d.getDate()+1);return iso(d)};
   const tx=x=>String(x).replace(/\\/g,"\\\\").replace(/([;,])/g,"\\$1").replace(/\r?\n/g,"\\n");
+  const before=d=>d===30?"עוד חודש":d===7?"עוד שבוע":d===1?"מחר":"עוד "+d+" ימים";
   const stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
-  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Shaked Darca//Bagrut//HE","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
-  upcomingBagrut(g).forEach(e=>L.push("BEGIN:VEVENT","UID:"+e.id+"-g"+({"י":"10","יא":"11","יב":"12"}[g]||"0")+"@shaked-darca.github.io","DTSTAMP:"+stamp,
-    "DTSTART;VALUE=DATE:"+d8(e.date),"DTEND;VALUE=DATE:"+d8(next(e.end||e.date)),"SUMMARY:"+tx(e.title),
-    "DESCRIPTION:"+tx("שק״ד דרכא · "+GL[g]+(e.note?"\n"+e.note:"")),
-    "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+tx("עוד חודש: "+e.title),"TRIGGER:-P29DT15H","END:VALARM","END:VEVENT"));
+  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Shaked Darca//Reminders//HE","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
+  notifyEvents(p).forEach(e=>{
+    const t=NTOPICS.find(x=>x.k===topicOf(e));
+    L.push("BEGIN:VEVENT","UID:"+e.id+"-n@shaked-darca.github.io","DTSTAMP:"+stamp,
+      "DTSTART;VALUE=DATE:"+d8(e.date),"DTEND;VALUE=DATE:"+d8(next(e.end||e.date)),"SUMMARY:"+tx(e.title),
+      "DESCRIPTION:"+tx("שק״ד דרכא · "+e.grades.map(x=>GL[x]).join(", ")+(e.note?"\n"+e.note:"")));
+    t.d.forEach(d=>L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+tx(before(d)+": "+e.title),"TRIGGER:-P"+(d>1?(d-1)+"D":"")+"T7H","END:VALARM"));
+    L.push("END:VEVENT");
+  });
   L.push("END:VCALENDAR");
   return L.join("\r\n")+"\r\n";
 }
-function bagrutIcs(g){
-  const n=upcomingBagrut(g).length;
-  const url=URL.createObjectURL(new Blob([bagrutIcsText(g)],{type:"text/calendar;charset=utf-8"}));
-  const a=document.createElement("a"); a.href=url; a.download="bagrut-"+({"י":"10","יא":"11","יב":"12"}[g]||"grade")+".ics";
+function notifyIcs(p){
+  const n=notifyEvents(p).length;
+  if(!n){pushToast("אין כרגע אירועים קרובים בנושאים ובשכבות שבחרתם.");return}
+  const url=URL.createObjectURL(new Blob([notifyIcsText(p)],{type:"text/calendar;charset=utf-8"}));
+  const a=document.createElement("a"); a.href=url; a.download="shaked-darca-reminders.ics";
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
-  pushToast(`${n===1?"בגרות אחת":n+" בגרויות"} של ${GL[g]} מוכנות להוספה ליומן, כל אחת עם תזכורת חודש לפני. פתחו את הקובץ ובחרו "הוספת הכל". אם מועד משתנה, צריך להוסיף שוב.`);
+  pushToast(`${n===1?"אירוע אחד מוכן":n+" אירועים מוכנים"} להוספה ליומן, עם תזכורות. פתחו את הקובץ ובחרו "הוספת הכל". אם מועד משתנה, צריך להוסיף שוב.`);
 }
 
 /* push */
@@ -1149,42 +1233,38 @@ async function pushToken(){
   const reg=await navigator.serviceWorker.ready;
   return firebase.messaging().getToken({vapidKey:PUSH.vapidKey,serviceWorkerRegistration:reg});
 }
-async function pushSend(action,token,grade){
-  const r=await fetch(CAL_URL,{method:"POST",body:JSON.stringify({action,token,grade})}).then(r=>r.json());
+async function pushSend(token,p){
+  const r=await fetch(CAL_URL,{method:"POST",body:JSON.stringify({action:"push-set",token,grades:p.grades,topics:p.topics})}).then(r=>r.json());
   if(!r||!r.ok) throw new Error(r&&r.error||"no answer");
 }
-async function togglePush(g,btn){
+async function savePush(p,btn,off){
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
   const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
   if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)){
-    if(ios&&!standalone){pushToast("באייפון ההתראות עובדות רק מתוך האפליקציה: מתקינים את האתר למסך הבית, פותחים אותו משם ולוחצים כאן שוב. בינתיים אפשר ללחוץ על \"הוספה ליומן\"."); if(window.installApp) window.installApp(); return;}
-    pushToast("הדפדפן הזה לא תומך בהתראות. אפשר ללחוץ על \"הוספה ליומן\" במקום."); return;
+    if(ios&&!standalone){closeNotify(); pushToast("באייפון ההתראות עובדות רק מתוך האפליקציה: מתקינים את האתר למסך הבית, פותחים אותו משם ובוחרים שוב. בינתיים אפשר ללחוץ על \"הוספה ליומן בטלפון\"."); if(window.installApp) window.installApp(); return;}
+    pushToast("הדפדפן הזה לא תומך בהתראות. אפשר ללחוץ על \"הוספה ליומן בטלפון\" במקום."); return;
   }
-  const on=store.get("push:"+g,false);
   // the permission question must come straight from the tap, before anything else waits
-  const perm=on?Notification.permission:await Notification.requestPermission();
-  if(!on&&perm!=="granted"){pushToast("ההתראות חסומות בטלפון הזה. אפשר לאשר אותן בהגדרות של הדפדפן או של הטלפון, ולנסות שוב."); return;}
-  btn.disabled=true; btn.textContent="רגע…";
+  const perm=off?Notification.permission:await Notification.requestPermission();
+  if(!off&&perm!=="granted"){pushToast("ההתראות חסומות בטלפון הזה. אפשר לאשר אותן בהגדרות של הדפדפן או של הטלפון, ולנסות שוב."); return;}
+  const old=btn.textContent; btn.disabled=true; btn.textContent="רגע…";
   try{
-    const token=await pushToken();
-    await pushSend(on?"push-off":"push-on",token,g);
-    store.set("push:"+g,!on); store.set("pushAt",Date.now());
-    pushToast(on?`ההתראות לבגרויות של ${GL[g]} כובו.`:`מעולה! תקבלו התראה חודש לפני כל בגרות של ${GL[g]}.`);
+    await pushSend(await pushToken(),p);
+    store.set("notify",off?null:{grades:p.grades,topics:p.topics,push:true}); store.set("pushAt",Date.now());
+    closeNotify(); render();
+    pushToast(off?"ההתראות כובו.":"מעולה! ההתראות מופעלות. אפשר לשנות את הבחירה מתי שרוצים.");
   }catch(err){
-    console.warn("push",err);
-    pushToast("לא הצלחנו "+(on?"לכבות":"להפעיל")+" את ההתראות כרגע. נסו שוב בעוד כמה דקות.");
-  }finally{
-    const now=store.get("push:"+g,false);
-    document.querySelectorAll(`[data-push="${g}"]`).forEach(b=>{b.disabled=false;b.textContent=pushLabel(now);b.classList.toggle("ghost",now);b.setAttribute("aria-pressed",now)});
+    console.warn("push",err); btn.disabled=false; btn.textContent=old;
+    pushToast("לא הצלחנו "+(off?"לכבות":"להפעיל")+" את ההתראות כרגע. נסו שוב בעוד כמה דקות.");
   }
 }
-document.addEventListener("click",ev=>{const b=ev.target.closest("[data-push],[data-bag-ics]"); if(!b) return; ev.preventDefault(); ev.stopPropagation(); if("bagIcs" in b.dataset) bagrutIcs(b.dataset.bagIcs); else togglePush(b.dataset.push,b);});
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-notify]"); if(!b) return; ev.preventDefault(); ev.stopPropagation(); openNotify(b.dataset.notify);});
 /* Firebase sometimes changes a phone's address; once a week the app quietly sends the current one again */
 window.addEventListener("load",()=>{
-  if(!pushReady()||!("Notification" in window)||Notification.permission!=="granted") return;
-  const gs=BAG_GRADES.filter(g=>store.get("push:"+g,false));
-  if(!gs.length||Date.now()-store.get("pushAt",0)<7*864e5) return;
-  setTimeout(()=>pushToken().then(t=>Promise.all(gs.map(g=>pushSend("push-on",t,g)))).then(()=>store.set("pushAt",Date.now())).catch(()=>{}),4000);
+  const p=nPrefs();
+  if(!p||!p.push||!pushReady()||!("Notification" in window)||Notification.permission!=="granted") return;
+  if(Date.now()-store.get("pushAt",0)<7*864e5) return;
+  setTimeout(()=>pushToken().then(t=>pushSend(t,p)).then(()=>store.set("pushAt",Date.now())).catch(()=>{}),4000);
 });
 function listView(evs){
   const up = evs.filter(e=>pd(e.date)>=today), past = evs.filter(e=>pd(e.date)<today);
@@ -1543,7 +1623,7 @@ function myWeek(){
   const exams=evs.filter(e=>e.type==="exam").length;
   return `<section class="myweek"><div class="mw-head"><h2>השבוע שלי</h2><span class="mw-grade">${staff?"צוות":"שכבת "+esc(GL[g])}</span><button class="link-btn" data-my-change>${staff?"החלפה":"החלפת שכבה"}</button><span class="spacer"></span>${exams?`<span class="mw-count">${exams===1?"מבחן אחד":exams+" מבחנים"} השבוע</span>`:""}</div>
     ${evs.length?`<div class="mw-days">${Object.keys(days).sort().map(k=>`<div class="mw-day ${k===iso(today)?"is-today":""}"><div class="mw-dn">${dayName(k)}</div><div class="mw-list">${days[k].map(e=>`<div class="mw-ev t-${cls(e)}"><span class="bar"></span><span class="mw-t">${esc(e.title)}${e.end?`<small>עד ${fmt(e.end)}</small>`:""}</span>${planBtn(e)}</div>`).join("")}</div></div>`).join("")}</div>`:`<p class="empty">${staff?"אין ישיבות, השתלמויות או מופ״ד בשבוע הקרוב.":"אין מבחנים או אירועים בשבוע הקרוב. שבוע רגוע!"}</p>`}
-    ${BAG_GRADES.includes(g)?remindBar(g):""}
+    ${remindBar(g)}
     <div><button class="btn ghost" data-go-cal>${staff?"ללוח הצוות המלא ←":"ללוח השנה של השכבה ←"}</button></div></section>`;
 }
 

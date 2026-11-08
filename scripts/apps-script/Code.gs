@@ -21,9 +21,9 @@
  * הסקריפט גם קורא את טבלת הזמנת המחשבים (‎/exec?what=computers), ומקבל הזמנות מהאתר:
  * כותב כל הזמנה בזוג העמודות הפנוי הראשון, ומפתח עגלת אורן בעמודות שלו.
  *
- * תזכורות לבגרויות: תלמידים מפעילים באתר התראות לשכבה שלהם. האתר שולח לכאן "כתובת" של הטלפון
- * (token), והסקריפט שומר אותה בגיליון "מנויי התראות בגרויות" (בלי שמות). פעם ביום, ב-17:00,
- * bagrutReminders בודק אילו בגרויות יוצאות בעוד חודש ושולח התראה דרך Firebase.
+ * התראות: תלמידים ומורים בוחרים באתר שכבות ונושאים (בגרויות, מבחנים, טיולים, חברתי, חופשות, צוות).
+ * האתר שולח לכאן "כתובת" של הטלפון (token) עם הבחירה, והסקריפט שומר אותה בגיליון "מנויי התראות"
+ * (בלי שמות). פעם ביום, ב-17:00, dailyReminders בודק מה יוצא בקרוב ושולח התראות דרך Firebase.
  * כדי שזה יעבוד צריך להדביק פעם אחת את מפתח השירות של Firebase:
  *   הגדרות הפרויקט (גלגל השיניים) ← מאפייני סקריפט ← הוספה: שם FCM_SA, ערך: כל התוכן של קובץ ה-JSON.
  * בדיקה: אחרי שהפעלתם התראות בטלפון שלכם, מריצים testPush – ההתראה נשלחת לטלפון האחרון שנרשם.
@@ -65,10 +65,17 @@ const COMPUTERS_SECONDS = 2 * 60;
 const COMP_FIRST = 1, COMP_LAST = 25, CART_COL = 27, CRT5_COL = 29;
 const SITE_NOTE = "הוזמן מהאתר";
 
-/* תזכורות לבגרויות */
-const REMIND_DAYS = [30];          // כמה ימים לפני כל בגרות שולחים. אפשר להוסיף, למשל [30, 7, 1]
+/* התראות: הנושאים, וכמה ימים לפני כל אירוע שולחים (חייב להתאים ל-NTOPICS באתר) */
+const TOPICS = {
+  bagrut:   { days: [30],   icon: "📚", tail: "זה הזמן להתחיל לתכנן למידה." },
+  exams:    { days: [7],    icon: "✏️", tail: "" },
+  trips:    { days: [7, 1], icon: "🚌", tail: "" },
+  social:   { days: [1],    icon: "🎉", tail: "" },
+  holidays: { days: [1],    icon: "🌿", tail: "" },
+  staff:    { days: [1],    icon: "👥", tail: "" }
+};
 const REMIND_HOUR = 17;            // באיזו שעה ביום שולחים
-const PUSH_GRADES = ["י", "יא", "יב"];
+const PUSH_GRADES = ["זחבנים", "זחבנות", "ט", "י", "יא", "יב", "staff"];
 const SITE_URL = "https://shaked-darca.github.io/";
 
 /* ---------- web app ---------- */
@@ -108,9 +115,9 @@ function setup() {
   } catch (err) {
     Logger.log("אין גישה לטבלת המחשבים. צריך לשתף אותה עם החשבון הזה, עם הרשאת עריכה. " + err);
   }
-  // תזכורות לבגרויות: גיליון המנויים ובדיקה יומית
-  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === "bagrutReminders") ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger("bagrutReminders").timeBased().everyDays(1).atHour(REMIND_HOUR).inTimezone(TZ).create();
+  // התראות: גיליון המנויים ובדיקה יומית
+  ScriptApp.getProjectTriggers().forEach(t => { if (["bagrutReminders", "dailyReminders"].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger("dailyReminders").timeBased().everyDays(1).atHour(REMIND_HOUR).inTimezone(TZ).create();
   const subs = pushSheet_();
   Logger.log("גיליון מנויי ההתראות: " + subs.getParent().getUrl() + " (" + (subs.getLastRow() - 1) + " מנויים)");
   Logger.log(PropertiesService.getScriptProperties().getProperty("FCM_SA")
@@ -252,7 +259,7 @@ function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
     lock.waitLock(15000);
-    if (req.action === "push-on" || req.action === "push-off") {
+    if (req.action === "push-set") {
       return ContentService.createTextOutput(JSON.stringify(pushSub_(req))).setMimeType(ContentService.MimeType.JSON);
     }
     out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : req.action === "freeze" ? {ok:false,error:"הקפאה אפשרית רק בטבלה, על ידי אחראי המחשבים"} : book_(req);
@@ -429,79 +436,89 @@ function heb_(t) {
   return out.filter((v, i) => out.indexOf(v) === i).join(" / ");
 }
 
-/* ---------- bagrut reminders ---------- */
+/* ---------- reminders (push notifications) ---------- */
 
-// הגיליון שבו נשמרים המנויים: token | שכבה | נרשם | עודכן. נוצר לבד בפעם הראשונה.
+// הגיליון שבו נשמרים המנויים: token | שכבות | נושאים | נרשם | עודכן. שורה לכל טלפון. נוצר לבד בפעם הראשונה.
 function pushSheet_() {
   const p = PropertiesService.getScriptProperties();
   let ss = null;
-  const id = p.getProperty("PUSH_SHEET");
+  const id = p.getProperty("PUSH_SUBS");
   if (id) { try { ss = SpreadsheetApp.openById(id); } catch (x) { ss = null; } }
   if (!ss) {
-    ss = SpreadsheetApp.create('מנויי התראות בגרויות – אתר שק"ד דרכא');
+    ss = SpreadsheetApp.create('מנויי התראות – אתר שק"ד דרכא');
     const sh = ss.getSheets()[0];
-    sh.appendRow(["token", "שכבה", "נרשם", "עודכן"]);
+    sh.appendRow(["token", "שכבות", "נושאים", "נרשם", "עודכן"]);
     sh.setFrozenRows(1);
-    p.setProperty("PUSH_SHEET", ss.getId());
+    p.setProperty("PUSH_SUBS", ss.getId());
   }
   return ss.getSheets()[0];
 }
 
-// האתר שולח {action:"push-on"|"push-off", token, grade}
+// האתר שולח {action:"push-set", token, grades:[...], topics:[...]}. בלי נושאים = ביטול ההרשמה.
 function pushSub_(req) {
-  const token = String(req.token || "").trim(), g = String(req.grade || "");
+  const token = String(req.token || "").trim();
   if (!/^[A-Za-z0-9_:.\-]{20,500}$/.test(token)) return { ok: false, error: "כתובת התראות לא תקינה" };
-  if (PUSH_GRADES.indexOf(g) < 0) return { ok: false, error: "שכבה לא מוכרת" };
+  const grades = (req.grades || []).map(String).filter((g, i, a) => PUSH_GRADES.indexOf(g) >= 0 && a.indexOf(g) === i);
+  const topics = (req.topics || []).map(String).filter((t, i, a) => TOPICS[t] && a.indexOf(t) === i);
   const sh = pushSheet_(), rows = sh.getDataRange().getValues(), now = new Date();
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (rows[i][0] === token && String(rows[i][1]) === g) {
-      if (req.action === "push-off") sh.deleteRow(i + 1); else sh.getRange(i + 1, 4).setValue(now);
-      return { ok: true };
-    }
-  }
-  if (req.action === "push-on") sh.appendRow([token, g, now, now]);
+  let row = 0;
+  for (let i = rows.length - 1; i >= 1; i--) if (rows[i][0] === token) { row = i + 1; break; }
+  if (!grades.length || !topics.length) { if (row) sh.deleteRow(row); return { ok: true }; }
+  if (row) sh.getRange(row, 2, 1, 4).setValues([[grades.join(","), topics.join(","), rows[row - 1][3] || now, now]]);
+  else sh.appendRow([token, grades.join(","), topics.join(","), now, now]);
   return { ok: true };
 }
 
-/** רץ אוטומטית כל יום ב-17:00: שולח התראה על כל בגרות שיוצאת בעוד חודש (לפי REMIND_DAYS). */
-function bagrutReminders() {
+// לאיזה נושא שייך אירוע (אותו מיון כמו באתר)
+function topicOf_(ev) {
+  if (ev.grades.length === 1 && ev.grades[0] === "staff") return "staff";
+  if (ev.type === "holiday") return "holidays";
+  if (/בגר/.test(ev.title) && !/מתכונ/.test(ev.title)) return "bagrut";
+  if (ev.type === "exam") return "exams";
+  if (ev.type === "trip") return "trips";
+  return "social";
+}
+
+/** רץ אוטומטית כל יום ב-17:00: שולח לכל טלפון התראה על האירועים בנושאים ובשכבות שבחר (הזמנים ב-TOPICS). */
+function dailyReminders() {
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty("FCM_SA")) { Logger.log("חסר FCM_SA – לא נשלח כלום"); return; }
   const sh = pushSheet_();
-  const subs = sh.getDataRange().getValues().slice(1).filter(r => r[0]);
+  const subs = sh.getDataRange().getValues().slice(1).filter(r => r[0]).map(r => ({
+    token: r[0], grades: String(r[1]).split(","), topics: String(r[2]).split(",") }));
   if (!subs.length) { Logger.log("אין עדיין מנויים"); return; }
   const events = JSON.parse(readCache_() || build_()).events;
   const todayS = day_(new Date());
   const gone = {};
   let sent = 0;
   events.forEach(ev => {
-    if (!/בגר/.test(ev.title) || /מתכונ/.test(ev.title)) return;
+    const topic = topicOf_(ev), T = TOPICS[topic];
     const left = daysBetween_(todayS, ev.date);
-    REMIND_DAYS.forEach(d => {
+    T.days.forEach(d => {
       // שולחים ביום הנכון, ואם פספסנו יום (תקלה), גם ביומיים שאחריו
       if (!(left <= d && left > Math.max(d - 3, 0))) return;
       const key = "sent:" + ev.id + ":" + d;
       if (props.getProperty(key)) return;
-      const tokens = {};
-      subs.forEach(r => {
-        const g = String(r[1]);
-        if (ev.grades.indexOf(g) >= 0 || ev.grades.indexOf("all") >= 0) tokens[r[0]] = true;
-      });
-      const title = "📚 " + ev.title;
-      const body = (left === 30 ? "בעוד חודש" : left === 1 ? "מחר" : "בעוד " + left + " ימים") +
-        " – " + hebDay_(ev.date) + ". זה הזמן להתחיל לתכנן למידה.";
-      Object.keys(tokens).forEach(t => {
-        const res = sendPush_(t, title, body, SITE_URL, ev.id);
+      const to = subs.filter(s => s.topics.indexOf(topic) >= 0 && (topic === "staff"
+        ? s.grades.indexOf("staff") >= 0
+        : ev.grades.indexOf("all") >= 0 || ev.grades.some(g => s.grades.indexOf(g) >= 0)));
+      const when = left === 30 ? "בעוד חודש" : left === 7 ? "בעוד שבוע" : left === 1 ? "מחר" : "בעוד " + left + " ימים";
+      const body = when + " – " + hebDay_(ev.date) + (T.tail ? ". " + T.tail : "");
+      to.forEach(s => {
+        const res = sendPush_(s.token, T.icon + " " + ev.title, body, SITE_URL, ev.id + "-" + d);
         if (res === "ok") sent++;
-        else if (res === "gone") gone[t] = true;
+        else if (res === "gone") gone[s.token] = true;
       });
       props.setProperty(key, todayS);
-      Logger.log("נשלח: " + ev.title + " (" + ev.date + ") ל-" + Object.keys(tokens).length + " טלפונים");
+      if (to.length) Logger.log("נשלח: " + ev.title + " (" + ev.date + ") ל-" + to.length + " טלפונים");
     });
   });
   // טלפונים שהסירו את האפליקציה או חסמו התראות – מוחקים מהגיליון
   const rows = sh.getDataRange().getValues();
   for (let i = rows.length - 1; i >= 1; i--) if (gone[rows[i][0]]) sh.deleteRow(i + 1);
+  // ניקוי סימוני "נשלח" ישנים (של אירועים שעברו לפני יותר מחודש)
+  const old = day_(new Date(Date.now() - 40 * 86400000));
+  Object.keys(props.getProperties()).forEach(k => { if (k.indexOf("sent:") === 0 && props.getProperty(k) < old) props.deleteProperty(k); });
   Logger.log("סה״כ התראות שנשלחו היום: " + sent);
 }
 
@@ -510,7 +527,7 @@ function testPush() {
   const rows = pushSheet_().getDataRange().getValues();
   if (rows.length < 2) { Logger.log("אין עדיין אף טלפון רשום. קודם מפעילים התראות באתר."); return; }
   const last = rows[rows.length - 1];
-  Logger.log("נשלח לטלפון של שכבת " + last[1] + ": " +
+  Logger.log("נשלח לטלפון (" + last[1] + " · " + last[2] + "): " +
     sendPush_(last[0], "בדיקה ✓", 'ההתראות של אתר שק"ד דרכא עובדות.', SITE_URL, "test"));
 }
 
