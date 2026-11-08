@@ -1489,8 +1489,9 @@ const CP={fz:null,data:store.get("computers",null),at:0,day:null,err:false,form:
 const CART_COL=27, CP_LAST=25;
 function cpMine(){return (store.get("cpMine",[])||[]).filter(m=>m.date>=iso(today))}
 async function cpPost(body){
-  const r=await fetch(CAL_URL,{method:"POST",body:JSON.stringify(body)});
+  const r=await fetch(CAL_URL,{method:"POST",body:JSON.stringify({...body,pw:store.get("cpPw","")})});
   const j=await r.json();
+  if(j&&j.badPw){store.set("cpPw","");CP.pw="";j.error="סיסמת הצוות שגויה. אפשר להקליד אותה שוב.";if(j.results)j.results=null}
   if(j&&j.data&&j.data.ok){CP.data=j.data;store.set("computers",j.data);CP.at=Date.now()}
   return j;
 }
@@ -1525,6 +1526,7 @@ function cpForm(days){
     <div class="field"><label for="cpWho">שם המורה</label><input id="cpWho" value="${esc(CP.who)}" maxlength="40" required></div>
     ${CP.cart&&!E?`<p class="cp-note">ההזמנה תירשם בטבלה בעמודת אורן – המפתח לעגלת המחשבים שבבית אורן.</p>`:`<div class="cp-two"><div class="field"><label for="cpN">מס' מחשבים</label><input id="cpN" type="number" inputmode="numeric" min="1" max="60" value="${esc(CP.n)}"></div>
       <div class="field"><label for="cpX">ציוד נוסף (לא חובה)</label><input id="cpX" value="${esc(CP.x)}" maxlength="40" placeholder="עכברים, אוזניות…"></div></div>`}
+    ${store.get("cpPw","")?"":`<div class="field"><label for="cpPw">סיסמת צוות</label><input id="cpPw" type="password" value="${esc(CP.pw||"")}" maxlength="40" autocomplete="current-password"><small class="cp-note">פעם אחת בלבד – הטלפון יזכור אותה</small></div>`}
     ${res}
     <div class="row"><button class="btn" type="submit" ${CP.busy?"disabled":""}>${CP.busy?"שולח…":E?"שמירת השינויים":"הזמנה"}</button><button class="btn ghost" type="button" data-cpclose>סגירה</button></div>
   </form>`;
@@ -1893,7 +1895,7 @@ document.addEventListener("change",ev=>{const t=ev.target;
   if(t.name==="cpRow"){const r=Number(t.value);CP.sel=CP.edit?[r]:t.checked?[...new Set([...CP.sel,r])]:CP.sel.filter(x=>x!==r)}
   else if(t.id==="cpFixed"){CP.fixed=t.checked;render()}
   else if(t.name==="cpKind"){CP.cart=t.value==="cart";render()}});
-document.addEventListener("input",ev=>{const t=ev.target;if(t.id==="cpWho"||t.id==="cpFzBy")CP.who=t.value;else if(t.id==="cpN")CP.n=t.value;else if(t.id==="cpX")CP.x=t.value});
+document.addEventListener("input",ev=>{const t=ev.target;if(t.id==="cpWho"||t.id==="cpFzBy")CP.who=t.value;else if(t.id==="cpN")CP.n=t.value;else if(t.id==="cpX")CP.x=t.value;else if(t.id==="cpPw")CP.pw=t.value});
 document.addEventListener("submit",async ev=>{
   if(ev.target.id==="cpFz"){ev.preventDefault();const F=CP.fz;if(!F||CP.busy)return;const by=(CP.who||"").trim();
     if(!by){F.err="צריך למלא שם.";render();return}
@@ -1910,6 +1912,7 @@ document.addEventListener("submit",async ev=>{
   if(!CP.sel.length) err.push("צריך לסמן לפחות שיעור אחד.");
   if(!who) err.push("צריך למלא שם.");
   if(!what&&!CP.cart) err.push("צריך למלא מספר מחשבים.");
+  if(!store.get("cpPw","")){const p=String(CP.pw||"").trim(); if(p) store.set("cpPw",p); else err.push("צריך להקליד את סיסמת הצוות.");}
   if(err.length){CP.res=err.map(t=>({ok:false,text:t}));render();return}
   store.set("cpWho",who); CP.busy=true; CP.res=null; render();
   const wd=CP.fDay;

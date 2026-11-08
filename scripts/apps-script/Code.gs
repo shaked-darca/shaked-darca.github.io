@@ -262,6 +262,11 @@ function doPost(e) {
     if (req.action === "push-set") {
       return ContentService.createTextOutput(JSON.stringify(pushSub_(req))).setMimeType(ContentService.MimeType.JSON);
     }
+    // הזמנה, עריכה וביטול – רק עם סיסמת הצוות. הסיסמה שמורה במאפייני הסקריפט (STAFF_PW) ולא בקוד, כי הקוד גלוי ב-GitHub.
+    const staffPw = PropertiesService.getScriptProperties().getProperty("STAFF_PW");
+    if (!staffPw || String(req.pw || "") !== staffPw) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, badPw: true, error: "סיסמת צוות שגויה" })).setMimeType(ContentService.MimeType.JSON);
+    }
     out = req.action === "cancel" ? cancel_(req) : req.action === "edit" ? edit_(req) : req.action === "freeze" ? {ok:false,error:"הקפאה אפשרית רק בטבלה, על ידי אחראי המחשבים"} : book_(req);
     CacheService.getScriptCache().remove(COMPUTERS_KEY);
     out.data = JSON.parse(buildComputers_());
