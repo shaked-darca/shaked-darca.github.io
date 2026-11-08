@@ -469,6 +469,11 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 .bg-k{font-size:.78rem;font-weight:800;border-radius:999px;padding:2px 10px}
 .bg-k.bg{background:var(--exam-soft);color:var(--exam)}
 .bg-k.mk{border:1px solid var(--exam);color:var(--exam)}
+/* army + significant-events boards reuse the bagrut look, each in its own color */
+.bagrut.army summary{color:var(--palm)}
+.bagrut.army .bg-n,.bg-k.ar{background:var(--palm-soft);color:var(--palm)}
+.bagrut.sig summary{color:var(--water)}
+.bagrut.sig .bg-n,.bg-k.sg{background:var(--water-soft);color:var(--water)}
 @media (max-width:560px){.bg-row{grid-template-columns:68px minmax(0,1fr) auto;gap:8px}.bg-d{font-size:.8rem;white-space:nowrap}.bg-t{font-size:.92rem}.bagrut summary{font-size:.95rem;padding:12px 14px}.bg-month{padding:2px 14px 8px}}
 .bg-remind{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:10px;padding:12px 16px;background:var(--exam-soft);border-radius:var(--r)}
 .bg-remind .bg-r-t{font-weight:700;color:var(--exam)}
@@ -858,6 +863,11 @@ const SOC = [["talks","שיחות וימי עיון"],["army","צבא ושירו
 const SOC_L = Object.fromEntries(SOC);
 /* צבא ושירות: רק לשכבות י״א וי״ב */
 const ARMY_G = ["יא","יב"];
+/* מה נחשב "צבא" (הוגדר יחד עם מנהל האתר): צו ראשון והכנה אליו, צו אחוד, יום המאה והכנה אליו, חוסן קרבי,
+   שירות לאומי וסיירות, יום הכוון ושיחה לקראת שנה הבאה. כל שורה: [מילים בשם האירוע, התווית בלוח] */
+const ARMY = [[/צו אחוד/,"צו אחוד"],[/הכנה לצו|לשכת גיוס/,"הכנה לצו"],[/צו ראשון/,"צו ראשון"],[/יום המאה/,"יום המאה"],
+  [/שירות לאומי|סיירות/,"שירות לאומי"],[/חוסן קרבי/,"חוסן קרבי"],[/יום הכוון|לקראת שנה הבאה/,"הכוון"]];
+const armyKind = e=>{const r=ARMY.find(([re])=>re.test(e.title)); return r?r[1]:"";};
 /* שכבות נבחרות: מערך של שכבות. מערך ריק = לוח כללי. אפשר לבחור כמה שכבות יחד */
 function loadGrades(){ const a=store.get("grades",null); if(Array.isArray(a)) return a; const g=store.get("grade","all"); return g&&g!=="all"?[g]:[]; }
 function saveGrades(){ store.set("grades",S.grades); }
@@ -872,7 +882,7 @@ function socTag(e){ const t=e.title;
   if(/הורים|תעודות|ערב סיכום|ערב סיום|ערב מהו"ת/.test(t)) return "parents";
   if(e.type==="trip"||/סיור|טיול|מסע|קמפוס|סמינר|שבוע נגב|נטיעות|פולין/.test(t)) return "trip";
   if(/כדורסל|נבחרת|מירוצ|טריאתלון/.test(t)) return "sport";
-  if(/צו( |$)|לשכת גיוס|סיירות|מד"?א|מחלץ|חוסן קרבי/.test(t)) return e.grades.every(g=>ARMY_G.includes(g))?"army":"general";
+  if(armyKind(e)||/צו( |$)|מד"?א|מחלץ/.test(t)) return e.grades.every(g=>ARMY_G.includes(g))?"army":"general";
   if(/ראיה|חיסונ/.test(t)) return "general";
   if(/שיחה|שיחת|יום עיון|יום זהות|יום שיא|דרך ארץ|קפה דילמה|חשיפה|הכוון|פאנל|נושא|יומן קריאה|שבוע השפה|ספריה|תכנית|הכנה/.test(t)) return "talks";
   return "general"; }
@@ -1080,7 +1090,7 @@ function calendarView(){
   </div>
 ${S.type==="staff"?`<p class="legend staff-legend"><span class="sw"></span>תצוגת מורים: כל האירועים של כל השכבות, ואירועי הצוות (ישיבות מחנכים, ימי עיון) מסומנים בסגול</p>`:(gAll()?`<p class="legend">הלוח הכללי של שק״ד דרכא. לבחינות ולאירועים של שכבה, בחרו שכבה.</p>`:"")}`;
   h += S.mode==="list" ? listView(evs) : monthView(evs);
-  h += bagrutList();
+  h += bagrutList() + armySigList();
   if(S.type==="exam") h += `<section class="focus"><h2>מבחנים קרובים${gAll()?"":" · "+esc(gradesLabel())}</h2>
     ${exams.length?`<div class="focus-list">${exams.map(e=>{const d=pd(e.date);return `<div class="exam-card ${canPlan(e)?"plannable":""}" ${canPlan(e)?`data-plan="${e.id}" role="button" tabindex="0" title="תכנון למידה למבחן"`:""}><span class="d">יום ${WD[d.getDay()]}, ${fmt(e.date)}</span><span class="t">${esc(e.title)}</span><span class="g">${e.grades.map(x=>GL[x]).join(", ")}</span></div>`}).join("")}</div>`:`<p class="empty">אין מבחנים בשבועיים הקרובים${gAll()?"":S.grades.length>1?" לשכבות האלה":" לשכבה הזו"}.</p>`}
   </section>`;
@@ -1103,7 +1113,37 @@ function bagrutOne(g){
     ${Object.keys(months).map(k=>`<div class="bg-month"><h4>${MN[Number(k.slice(5))-1]} ${k.slice(0,4)}</h4>${months[k].map(e=>{const d=pd(e.date),m=/מתכונ/.test(e.title);return `<div class="bg-row ${d<today?"past":""}"><span class="bg-d">${"אבגדהוש"[d.getDay()]}׳ · ${d.getDate()}.${d.getMonth()+1}</span><span class="bg-t">${esc(e.title)}</span><span class="bg-k ${m?"mk":"bg"}">${m?"מתכונת":"בגרות"}</span></div>`}).join("")}</div>`).join("")}
   </details>${remindBar(g)}`;
 }
-document.addEventListener("toggle",ev=>{if(ev.target.classList&&ev.target.classList.contains("bagrut"))store.set("bagOpen",ev.target.open)},true);
+/* לוח צבא (יא, יב) ואירועים משמעותיים (כל השכבות), כרשימות נפתחות כמו לוח הבגרויות */
+const SIG = [[/טיול שנתי/,"טיול שנתי"],[/מסע(ות)? בנ(ים|ות)/,"מסע"],[/מסע בשביל/,"מסע"],[/פולין/,"פולין"],
+  [/תכנית יא/,"תכנית יא"],[/^טריאתלון/,"טריאתלון"],[/קורס מד"?א/,"קורס מד״א"]];
+const sigKind = e=>{const r=SIG.find(([re])=>re.test(e.title)); return r?r[1]:"";};
+/* events of a grade; a whole-school event counts too, except פולין which belongs to יא-יב only */
+const forGrade = (e,g)=>e.grades.includes(g)||(e.grades.includes("all")&&(!/פולין/.test(e.title)||ARMY_G.includes(g)));
+/* a course spread over a few single days (קורס מד״א) becomes one row */
+function joinDays(list){ const out=[];
+  list.forEach(e=>{const p=out[out.length-1];
+    if(p&&p.title===e.title&&nextDay(p.end||p.date)===e.date) p.end=e.date; else out.push({...e});});
+  return out; }
+function yearBoard(g,list,o){
+  if(!list.length) return "";
+  const left=list.filter(e=>pd(e.end||e.date)>=today).length;
+  const months={}; list.forEach(e=>{(months[e.date.slice(0,7)]??=[]).push(e)});
+  const MN=["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+  const dd=d=>`${"אבגדהוש"[d.getDay()]}׳ · ${d.getDate()}.${d.getMonth()+1}`;
+  return `<details class="bagrut ${o.cls}" data-key="${o.key}" ${store.get(o.key,false)?"open":""}><summary><span class="bg-title">${o.title} · שכבת ${esc(GL[g])}</span><span class="bg-n">${left?`${left} לפניכם`:"הסתיימו"}</span></summary>
+    ${Object.keys(months).map(k=>`<div class="bg-month"><h4>${MN[Number(k.slice(5))-1]} ${k.slice(0,4)}</h4>${months[k].map(e=>{const d=pd(e.date),en=e.end?pd(e.end):null;return `<div class="bg-row ${pd(e.end||e.date)<today?"past":""}"><span class="bg-d">${dd(d)}${en?`<br>עד ${en.getDate()}.${en.getMonth()+1}`:""}</span><span class="bg-t">${esc(e.title)}</span><span class="bg-k ${o.pill}">${esc(o.kind(e))}</span></div>`}).join("")}</div>`).join("")}
+  </details>`;
+}
+function armySigList(){
+  if(S.type==="staff") return "";
+  return S.grades.map(g=>{
+    const mine=sorted().filter(e=>!isStaff(e)&&forGrade(e,g));
+    const army=ARMY_G.includes(g)?yearBoard(g,mine.filter(e=>armyKind(e)),{cls:"army",key:"armyOpen",title:"לוח צבא ושירות",pill:"ar",kind:armyKind}):"";
+    const sig=yearBoard(g,joinDays(mine.filter(e=>sigKind(e))),{cls:"sig",key:"sigOpen",title:"אירועים משמעותיים",pill:"sg",kind:sigKind});
+    return army+sig;
+  }).join("");
+}
+document.addEventListener("toggle",ev=>{if(ev.target.classList&&ev.target.classList.contains("bagrut"))store.set(ev.target.dataset.key||"bagOpen",ev.target.open)},true);
 
 /* ---------- notifications: each phone picks grades and topics, and gets a reminder before those events ----------
    Push: the page asks Firebase (Google's free push service) for an address for this phone, and sends it with the
