@@ -34,7 +34,7 @@ b = s.index("</header>", a) + len("</header>")
 old_header = s[a:b]
 emblem = re.search(r'<img src="(data:image/[^"]+)" alt="סמל בית ספר שק״ד">', old_header).group(1)
 tabs = re.search(r'<nav class="tabs".*?</nav>', old_header, re.S).group(0)
-buttons = re.search(r'<button class="edit-link".*?</button>\s*<button type="button" class="refresh-btn".*?</button>', old_header, re.S).group(0)
+buttons = re.search(r'<button class="edit-link".*?</button>\s*(?:<button type="button" class="refresh-btn bell-btn".*?</button>\s*)?<button type="button" class="refresh-btn" id="refreshBtn".*?</button>', old_header, re.S).group(0)
 new_header = f'''<header class="top">
   <div class="draft-bar">טיוטת עיצוב – לא האתר החי. <a href="./">לאתר החי</a></div>
   <div class="navbar"><div class="wrap nav-in">
