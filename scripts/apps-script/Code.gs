@@ -24,8 +24,8 @@
  * התראות: תלמידים ומורים בוחרים באתר שכבות ונושאים (בגרויות, מבחנים, טיולים, חברתי, חופשות, צוות).
  * האתר שולח לכאן "כתובת" של הטלפון (token) עם הבחירה, והסקריפט שומר אותה בגיליון "מנויי התראות"
  * (בלי שמות). פעם ביום, ב-17:00, dailyReminders בודק מה יוצא בקרוב ושולח התראות דרך Firebase.
- * כדי שזה יעבוד צריך להדביק פעם אחת את מפתח השירות של Firebase:
- *   הגדרות הפרויקט (גלגל השיניים) ← מאפייני סקריפט ← הוספה: שם FCM_SA, ערך: כל התוכן של קובץ ה-JSON.
+ * השליחה עוברת דרך פרויקט Firebase "shaked-darca-alerts" של חשבון בית הספר, בשם החשבון עצמו –
+ * בלי קובץ מפתח סודי. בשביל זה הקובץ appsscript.json כולל את ההרשאה firebase.messaging.
  * בדיקה: אחרי שהפעלתם התראות בטלפון שלכם, מריצים testPush – ההתראה נשלחת לטלפון האחרון שנרשם.
  */
 
@@ -74,6 +74,7 @@ const TOPICS = {
   holidays: { days: [1],    icon: "🌿", tail: "" },
   staff:    { days: [1],    icon: "👥", tail: "" }
 };
+const FCM_PROJECT = "shaked-darca-alerts";   // פרויקט ה-Firebase של בית הספר
 const REMIND_HOUR = 17;            // באיזו שעה ביום שולחים
 const PUSH_GRADES = ["זחבנים", "זחבנות", "ט", "י", "יא", "יב", "staff"];
 const SITE_URL = "https://shaked-darca.github.io/";
@@ -120,9 +121,7 @@ function setup() {
   ScriptApp.newTrigger("dailyReminders").timeBased().everyDays(1).atHour(REMIND_HOUR).inTimezone(TZ).create();
   const subs = pushSheet_();
   Logger.log("גיליון מנויי ההתראות: " + subs.getParent().getUrl() + " (" + (subs.getLastRow() - 1) + " מנויים)");
-  Logger.log(PropertiesService.getScriptProperties().getProperty("FCM_SA")
-    ? "מפתח Firebase קיים – ההתראות יישלחו כל יום ב-" + REMIND_HOUR + ":00"
-    : "עוד חסר מפתח Firebase (FCM_SA במאפייני הסקריפט). בלעדיו נרשמים, אבל לא נשלחות התראות.");
+  Logger.log("ההתראות יישלחו כל יום ב-" + REMIND_HOUR + ":00 דרך פרויקט Firebase " + FCM_PROJECT);
 }
 
 /** רץ אוטומטית כל 10 דקות, כדי שהאתר תמיד יקבל תשובה מהירה ועדכנית. */
@@ -487,7 +486,6 @@ function topicOf_(ev) {
 /** רץ אוטומטית כל יום ב-17:00: שולח לכל טלפון התראה על האירועים בנושאים ובשכבות שבחר (הזמנים ב-TOPICS). */
 function dailyReminders() {
   const props = PropertiesService.getScriptProperties();
-  if (!props.getProperty("FCM_SA")) { Logger.log("חסר FCM_SA – לא נשלח כלום"); return; }
   const sh = pushSheet_();
   const subs = sh.getDataRange().getValues().slice(1).filter(r => r[0]).map(r => ({
     token: r[0], grades: String(r[1]).split(","), topics: String(r[2]).split(",") }));
@@ -536,13 +534,13 @@ function testPush() {
     sendPush_(last[0], "בדיקה ✓", 'ההתראות של אתר שק"ד דרכא עובדות.', SITE_URL, "test"));
 }
 
-// שליחה דרך Firebase Cloud Messaging. מחזיר "ok", "gone" (הטלפון כבר לא רשום) או "error".
+// שליחה דרך Firebase Cloud Messaging, בשם חשבון בית הספר (הבעלים של פרויקט ה-Firebase).
+// מחזיר "ok", "gone" (הטלפון כבר לא רשום) או "error".
 function sendPush_(token, title, body, url, tag) {
-  const sa = JSON.parse(PropertiesService.getScriptProperties().getProperty("FCM_SA"));
-  const r = UrlFetchApp.fetch("https://fcm.googleapis.com/v1/projects/" + sa.project_id + "/messages:send", {
+  const r = UrlFetchApp.fetch("https://fcm.googleapis.com/v1/projects/" + FCM_PROJECT + "/messages:send", {
     method: "post",
     contentType: "application/json",
-    headers: { Authorization: "Bearer " + fcmAccess_(sa) },
+    headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken(), "x-goog-user-project": FCM_PROJECT },
     payload: JSON.stringify({ message: { token: token,
       data: { title: title, body: body, url: url || SITE_URL, tag: String(tag || "") },
       webpush: { headers: { Urgency: "high", TTL: "172800" } } } }),
@@ -555,22 +553,9 @@ function sendPush_(token, title, body, url, tag) {
   return "error";
 }
 
-// כניסה ל-Firebase עם מפתח השירות (חתימה דיגיטלית), לשעה. נשמר בזיכרון כדי לא לבקש בכל שליחה.
-function fcmAccess_(sa) {
-  const c = CacheService.getScriptCache(), hit = c.get("fcm-access");
-  if (hit) return hit;
-  const now = Math.floor(Date.now() / 1000);
-  const b64 = s => Utilities.base64EncodeWebSafe(s).replace(/=+$/, "");
-  const input = b64(JSON.stringify({ alg: "RS256", typ: "JWT" })) + "." + b64(JSON.stringify({
-    iss: sa.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging",
-    aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
-  const sig = b64(Utilities.computeRsaSha256Signature(input, sa.private_key));
-  const r = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", { method: "post", muteHttpExceptions: true,
-    payload: { grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: input + "." + sig } });
-  const j = JSON.parse(r.getContentText());
-  if (!j.access_token) throw new Error("כניסה ל-Firebase נכשלה: " + r.getContentText());
-  c.put("fcm-access", j.access_token, 3000);
-  return j.access_token;
+/** בדיקה שהחיבור ל-Firebase עובד, גם בלי אף טלפון רשום. תשובה טובה: "INVALID_ARGUMENT" (הכתובת המזויפת נדחתה). */
+function testFirebase() {
+  Logger.log(sendPush_("not-a-real-phone-token-just-a-connection-test", "בדיקה", "", SITE_URL, "test"));
 }
 
 function daysBetween_(a, b) {
