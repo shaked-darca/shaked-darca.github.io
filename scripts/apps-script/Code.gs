@@ -259,7 +259,6 @@ function doPost(e) {
   try {
     const req = JSON.parse(e.postData.contents);
     lock.waitLock(15000);
-    limit_(req.action === "push-set" ? "push" : "write", req.action === "push-set" ? 60 : 25);
     if (req.action === "push-set") {
       return ContentService.createTextOutput(JSON.stringify(pushSub_(req))).setMimeType(ContentService.MimeType.JSON);
     }
@@ -285,16 +284,14 @@ function book_(req) {
   const who = clean_(req.who, 40), what = clean_(req.what, 60), cart = !!req.cart, fixed = !!req.fixed;
   if (!who) throw new Error("חסר שם");
   if (!what && !cart) throw new Error("חסר מה להזמין");
-  const rows = (req.rows || []).map(Number).filter((r, i, a) => r > 0 && a.indexOf(r) === i);
+  const rows = (req.rows || []).map(Number).filter(r => r > 0);
   if (!rows.length) throw new Error("לא נבחר שיעור");
-  if (rows.length > MAX_ROWS) throw new Error("אפשר להזמין עד " + MAX_ROWS + " שיעורים בהזמנה אחת");
-  const key = newKey_();
   const sh = daySheet_(Number(req.wd));
   const vals = sh.getDataRange().getDisplayValues();
   const date = isoDate_(vals[0] && vals[0][0]);
   // הזמנה קבועה חוזרת כל שבוע, ולכן אפשר לרשום אותה גם ביום שכבר עבר השבוע (היא תחול מהשבוע הבא)
   if (!fixed && date && date < fmt_(new Date(), "yyyy-MM-dd")) throw new Error("היום הזה כבר עבר");
-  const stamp = SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm") + " · #" + key;
+  const stamp = SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm");
   const results = [];
   // שיעורים עוקבים באותה הזמנה נרשמים באותה עמודה – אחד מתחת לשני, כדי שהטבלה תהיה קריאה.
   // מחפשים עמודה שפנויה בכל השיעורים שנבחרו; אם אין כזו – ההזמנה נדחית ולא מפוזרת בין עמודות.
@@ -318,8 +315,8 @@ function book_(req) {
     }
     const free = shared;
     if (res.ok) {
-      if (what) { put_(sh, r, free, who, what, stamp, fixed); res.refs.push({ col: free, who, what, key }); }
-      if (cart) { put_(sh, r, CART_COL, who, "אורן", stamp, fixed); res.refs.push({ col: CART_COL, who, what: "אורן", key }); }
+      if (what) { put_(sh, r, free, who, what, stamp, fixed); res.refs.push({ col: free, who, what }); }
+      if (cart) { put_(sh, r, CART_COL, who, "אורן", stamp, fixed); res.refs.push({ col: CART_COL, who, what: "אורן" }); }
     }
     results.push(res);
   });
@@ -334,11 +331,7 @@ function ownCell_(req) {
   if (!(r > 0) || c < COMP_FIRST || c > CART_COL) throw new Error("הזמנה לא תקינה");
   const rng = sh.getRange(r + 1, c + 1, 1, 2);
   const v = rng.getDisplayValues()[0], note = String(sh.getRange(r + 1, c + 1).getNote() || "");
-  // הזמנה חדשה נושאת מפתח סודי (#...) בהערה על התא. רק הטלפון שהזמין קיבל אותו, ולכן רק הוא יכול לערוך או לבטל.
-  // הזמנות ישנות בלי מפתח – לפי השם והתוכן, כמו קודם (הן ייעלמו עם הטבלה של השבוע הבא).
-  const m = note.match(/#([A-Za-z0-9]{8,})/);
-  const keyOk = m ? String(req.key || "") === m[1] : true;
-  const ok = keyOk && String(v[0]).trim() === String(req.who || "").trim() && String(v[1]).trim() === String(req.what || "").trim() && note.indexOf(SITE_NOTE) === 0;
+  const ok = String(v[0]).trim() === String(req.who || "").trim() && String(v[1]).trim() === String(req.what || "").trim() && note.indexOf(SITE_NOTE) === 0;
   return { sh, r, c, rng, ok };
 }
 
@@ -359,19 +352,19 @@ function edit_(req) {
   if (!who) throw new Error("חסר שם");
   if (!what) throw new Error("חסר מה להזמין");
   const toWd = Number(to.wd), toRow = Number(to.row);
+  const stamp = SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm");
   if (toWd === Number(req.wd) && toRow === o.r) {
-    const key = newKey_();
-    put_(o.sh, o.r, o.c, who, what, SITE_NOTE + " · " + fmt_(new Date(), "d/M HH:mm") + " · #" + key, fixed);
+    put_(o.sh, o.r, o.c, who, what, stamp, fixed);
     SpreadsheetApp.flush();
     const vals = o.sh.getRange(1, 1).getDisplayValue();
-    return { ok: true, date: isoDate_(vals), refs: [{ wd: toWd, row: o.r, col: o.c, who, what, key }] };
+    return { ok: true, date: isoDate_(vals), refs: [{ wd: toWd, row: o.r, col: o.c, who, what }] };
   }
   const b = book_({ wd: toWd, rows: [toRow], who, what: cart ? "" : what, cart, fixed });
   const res = b.results[0];
   if (!res || !res.ok) return { ok: false, error: (res && res.msg) || "לא הצלחנו להזמין במקום החדש, ההזמנה הקודמת נשארה" };
   o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal").setFontColor("#000000");
   SpreadsheetApp.flush();
-  return { ok: true, date: b.date, refs: res.refs.map(f => ({ wd: toWd, row: toRow, col: f.col, who: f.who, what: f.what, key: f.key })) };
+  return { ok: true, date: b.date, refs: res.refs.map(f => ({ wd: toWd, row: toRow, col: f.col, who: f.who, what: f.what })) };
 }
 
 // הקפאה: צובע הזמנה קבועה באדום (מוקפאת – המחשבים פנויים) או מחזיר אותה לשחור.
@@ -402,19 +395,6 @@ function put_(sh, r, c, who, what, note, fixed) {
   rng.setValues([[safe_(who), safe_(what)]]).setFontWeight(fixed ? "bold" : "normal").setFontColor("#000000");
   sh.getRange(r + 1, c + 1).setNote(note);
 }
-/* ---------- הגנה מפני הצפה ---------- */
-const MAX_ROWS = 4;            // כמה שיעורים לכל היותר בהזמנה אחת
-const MAX_PUSH_SUBS = 3000;    // כמה טלפונים לכל היותר ברשימת ההתראות
-// מגביל כמה פעולות כתיבה יכולות לקרות בכל 10 דקות, מכל המשתמשים יחד.
-// מי שמנסה להציף את הטבלה בסקריפט ייעצר אחרי המכסה, והטבלה לא תתמלא בזבל.
-function limit_(kind, max) {
-  const cache = CacheService.getScriptCache();
-  const k = "rate:" + kind + ":" + Math.floor(Date.now() / 600000);
-  const n = Number(cache.get(k) || 0) + 1;
-  if (n > max) throw new Error("יותר מדי פעולות בזמן קצר. כדאי לנסות שוב בעוד כמה דקות, או להזמין ישירות בטבלה.");
-  cache.put(k, String(n), 700);
-}
-function newKey_() { return Utilities.getUuid().replace(/-/g, "").slice(0, 16); }
 function clean_(s, max) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, max); }
 // מונע מטקסט שמתחיל ב-= או + להפוך לנוסחה בגיליון
 function safe_(s) { return /^[=+\-@]/.test(s) ? "'" + s : s; }
@@ -485,7 +465,6 @@ function pushSub_(req) {
   for (let i = rows.length - 1; i >= 1; i--) if (rows[i][0] === token) { row = i + 1; break; }
   if (!grades.length || !topics.length) { if (row) sh.deleteRow(row); return { ok: true }; }
   if (row) sh.getRange(row, 2, 1, 4).setValues([[grades.join(","), topics.join(","), rows[row - 1][3] || now, now]]);
-  else if (rows.length > MAX_PUSH_SUBS) return { ok: false, error: "יותר מדי נרשמים" };
   else sh.appendRow([token, grades.join(","), topics.join(","), now, now]);
   return { ok: true };
 }

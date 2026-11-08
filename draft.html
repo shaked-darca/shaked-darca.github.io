@@ -1867,7 +1867,7 @@ document.addEventListener("click",async ev=>{
   else if(d.cpfday){CP.fDay=Number(d.cpfday);CP.sel=[];CP.res=null;render()}
   else if(d.cpcancel){const m=cpMine()[Number(d.cpcancel)]; if(!m||!confirm("לבטל את ההזמנה של "+m.who+"?")) return;
     b.disabled=true; CP.done="";
-    try{const j=await cpPost({action:"cancel",wd:m.wd,row:m.row,col:m.col,who:m.who,what:m.what,key:m.key});
+    try{const j=await cpPost({action:"cancel",wd:m.wd,row:m.row,col:m.col,who:m.who,what:m.what});
       store.set("cpMine",cpMine().filter(x=>!(x.date===m.date&&x.row===m.row&&x.col===m.col)));
       CP.done=j.ok?"ההזמנה בוטלה.":(j.error||"הביטול לא הצליח");}
     catch(e){CP.done="אין חיבור, הביטול לא נשלח. נסו שוב או בטלו בטבלה."}
@@ -1914,8 +1914,8 @@ document.addEventListener("submit",async ev=>{
   store.set("cpWho",who); CP.busy=true; CP.res=null; render();
   const wd=CP.fDay;
   if(CP.edit){const m=CP.edit;
-    try{const j=await cpPost({action:"edit",wd:m.wd,row:m.row,col:m.col,who:m.who,what:m.what,key:m.key,to:{wd,row:CP.sel[0],who,what,fixed:CP.fixed}});
-      if(j.ok){store.set("cpMine",cpMine().filter(x=>!(x.date===m.date&&x.row===m.row&&x.col===m.col)).concat((j.refs||[]).map(f=>({date:j.date,wd:f.wd,row:f.row,col:f.col,who:f.who,what:f.what,key:f.key}))));
+    try{const j=await cpPost({action:"edit",wd:m.wd,row:m.row,col:m.col,who:m.who,what:m.what,to:{wd,row:CP.sel[0],who,what,fixed:CP.fixed}});
+      if(j.ok){store.set("cpMine",cpMine().filter(x=>!(x.date===m.date&&x.row===m.row&&x.col===m.col)).concat((j.refs||[]).map(f=>({date:j.date,wd:f.wd,row:f.row,col:f.col,who:f.who,what:f.what}))));
         CP.form=false;CP.edit=null;CP.sel=[];CP.n="";CP.x="";CP.cart=false;CP.fixed=false;CP.day=wd;CP.done="השינויים נשמרו בטבלה."}
       else CP.res=[{ok:false,text:j.error||"השמירה לא הצליחה"}]}
     catch(e){CP.res=[{ok:false,text:"אין חיבור, השינויים לא נשמרו. אפשר לנסות שוב."}]}
@@ -1924,7 +1924,7 @@ document.addEventListener("submit",async ev=>{
     const j=await cpPost({action:"book",wd,rows:CP.sel,who,what,cart:CP.cart,fixed:CP.fixed});
     if(j.error&&!j.results){CP.res=[{ok:false,text:j.error}]}
     else{
-      const mine=cpMine(); (j.results||[]).forEach(r=>(r.refs||[]).forEach(f=>mine.push({date:j.date,wd,row:r.row,col:f.col,who:f.who,what:f.what,key:f.key})));
+      const mine=cpMine(); (j.results||[]).forEach(r=>(r.refs||[]).forEach(f=>mine.push({date:j.date,wd,row:r.row,col:f.col,who:f.who,what:f.what})));
       store.set("cpMine",mine);
       const bad=(j.results||[]).filter(r=>!r.ok), good=(j.results||[]).filter(r=>r.ok);
       if(!bad.length){CP.form=false;CP.res=null;CP.sel=[];CP.n="";CP.x="";CP.cart=false;CP.fixed=false;CP.day=wd;
