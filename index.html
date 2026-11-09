@@ -484,18 +484,34 @@ table.bk th.p small{display:block;color:var(--muted);font-weight:400;font-varian
 @media (max-width:386px){.bell-btn{display:grid}}
 .push-toast{position:fixed;inset:auto 12px calc(16px + env(safe-area-inset-bottom,0px)) 12px;z-index:60;max-width:460px;margin-inline:auto;background:#16201e;color:#fff;border-radius:12px;padding:14px 18px;line-height:1.5;box-shadow:0 10px 40px rgba(0,0,0,.3);opacity:0;transform:translateY(12px);transition:opacity .25s,transform .25s}
 .push-toast.on{opacity:1;transform:none}
-.nt-back{position:fixed;inset:0;z-index:55;background:rgba(10,20,18,.45);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s}
-.nt-back.on{opacity:1}
-.nt-pop{background:var(--surface);color:var(--ink,#16201e);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:14px;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
-@media (min-width:600px){.nt-back{align-items:center}.nt-pop{border-radius:16px}}
-.nt-head{display:flex;align-items:center;gap:10px}.nt-head h2{margin:0;font-size:1.2rem;flex:1;color:var(--palm)}
 .nt-sec h3{margin:0 0 4px;font-size:1rem}.nt-hint{margin:0 0 8px;color:var(--muted);font-size:.88rem}
+.me{display:grid;gap:14px;max-width:640px}
+.me-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r,14px);padding:16px 18px;display:grid;gap:14px}
+.me-card h3{margin:0;font-size:1.1rem;color:var(--palm)}
+.me-card h4{margin:0 0 4px;font-size:1rem}
+.me-card>.nt-hint{margin:-8px 0 0}
+.me-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.me-status{font-size:.85rem;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--line);color:var(--muted)}
+.me-status.on{background:#e1efe3;color:var(--palm)}
+#ntHost{display:grid;gap:14px}
+.me-off{justify-self:start;color:var(--exam)}
+.me-up{list-style:none;margin:0;padding:0;display:grid}
+.me-up li{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;padding:9px 0;border-top:1px solid var(--line)}
+.me-up li:first-child{border-top:0;padding-top:0}
+.me-up-t{font-weight:700;white-space:nowrap}.me-up small{grid-column:2;color:var(--muted)}
 .nt-chips{display:flex;flex-wrap:wrap;gap:6px}
 .nt-topics{display:grid;gap:6px}
-.nt-topic{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
-.nt-topic input{width:20px;height:20px;margin:0;accent-color:var(--water)}
-.nt-topic small{color:var(--muted);white-space:nowrap}
-.nt-topic:has(input:checked){border-color:var(--water);background:var(--exam-soft)}
+.nt-topic{border:1px solid var(--line);border-radius:10px}
+.nt-topic>label{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;font-weight:700}
+.nt-topic input{width:20px;height:20px;margin:0;accent-color:var(--water);flex:none}
+.nt-topic.on{border-color:var(--water)}
+.nt-when{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 12px 12px 12px;padding-inline-start:42px}
+.nt-when-l{color:var(--muted);font-size:.85rem;margin-inline-end:2px}
+.nt-day{border:1px solid var(--line);background:var(--surface);color:var(--ink,#16201e);border-radius:999px;padding:5px 11px;font:inherit;font-size:.85rem;cursor:pointer;min-height:32px}
+.nt-day[aria-pressed="true"]{background:var(--water);border-color:var(--water);color:#fff;font-weight:700}
+.nt-hour{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nt-hour h3{margin:0}
+.nt-hour select{font:inherit;font-size:1rem;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:inherit;min-width:110px}
 .nt-err{margin:0;color:var(--exam);font-weight:700;min-height:0}.nt-err:empty{display:none}
 .nt-acts{display:flex;flex-wrap:wrap;gap:8px}.nt-acts .btn{flex:1 1 auto}.nt-acts .btn.danger{flex:0 0 100%;min-height:40px}
 /* staff events */
@@ -769,7 +785,7 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
       <a href="#contacts" data-area="contacts">צור קשר</a>
     </nav>
     <button class="edit-link" id="editToggle" hidden>מצב עריכה</button>
-    <button type="button" class="refresh-btn bell-btn" id="bellBtn" data-notify="" aria-label="התראות" title="התראות"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="bell-dot" hidden></span></button>
+    <button type="button" class="refresh-btn bell-btn" id="bellBtn" data-notify="" aria-label="האזור שלי" title="האזור שלי"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="bell-dot" hidden></span></button>
     <button type="button" class="refresh-btn" id="refreshBtn" aria-label="רענון האפליקציה" title="רענון"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
   </div></div>
 </header>
@@ -852,11 +868,11 @@ const VIEWS = {
   home:{area:"home"}, shokdim:{area:"home",label:"שוקדים"}, gallery:{area:"home",label:"תמונות"},
   students:{area:"students",label:"לוח שנה"}, placements:{area:"students",label:"שיבוצי כיתות"}, forms:{area:"students",label:"טפסים"},
   staff:{area:"staff",label:"הזמנת מחשבים"}, computers:{area:"staff",label:"הזמנת מחשבים"},
-  links:{area:"links",label:"קישורים חשובים"},
+  links:{area:"links",label:"קישורים חשובים"}, me:{area:"me",label:"האזור שלי"},
   guides:{area:"guides",label:"מדריכים"},
   contacts:{area:"contacts",label:"צור קשר"}
 };
-const SUB = {home:[], students:["students","placements"], staff:[], links:[], guides:[], contacts:[]};
+const SUB = {home:[], students:["students","placements"], staff:[], links:[], guides:[], contacts:[], me:[]};
 const tab = ()=>{const h=location.hash.slice(1);return VIEWS[h]?h:"home"};
 window.addEventListener("hashchange",()=>{S.openForm=null;render()});
 /* dropdown menus under the אירועים שכבתיים / צוות tabs */
@@ -1093,13 +1109,17 @@ const PUSH = {apiKey:"AIzaSyCzKsbMeLpPNuYITCvLtJXngLghzgJT13w", authDomain:"shak
   vapidKey:"BL7BfZ8H6l18ztD1CPRJ2sFZf2_r1t0Tg5tEU6pYaPNT8AFICsKVF0z_4pHIliI7bfqdZ9hUOFMpDfCbVZK5Mtc"};
 const BAG_GRADES = ["י","יא","יב"];
 const NTOPICS = [
-  {k:"bagrut",  l:"בגרויות",                         d:[30],  w:"חודש לפני"},
-  {k:"exams",   l:"מבחנים ומתכונות",                  d:[7],   w:"שבוע לפני"},
-  {k:"trips",   l:"טיולים וסיורים",                   d:[7,1], w:"שבוע לפני ויום לפני"},
-  {k:"social",  l:"אירועים חברתיים",                  d:[1],   w:"יום לפני"},
-  {k:"holidays",l:"חופשות וחגים",                     d:[1],   w:"יום לפני"},
-  {k:"staff",   l:"צוות: ישיבות, מופ״ד, ימי עיון",     d:[1],   w:"יום לפני", staff:true}
+  {k:"bagrut",  l:"בגרויות",                         d:[30]},
+  {k:"exams",   l:"מבחנים ומתכונות",                  d:[7]},
+  {k:"trips",   l:"טיולים וסיורים",                   d:[7,1]},
+  {k:"social",  l:"אירועים חברתיים",                  d:[1]},
+  {k:"holidays",l:"חופשות וחגים",                     d:[1]},
+  {k:"staff",   l:"צוות: ישיבות, מופ״ד, ימי עיון",     d:[1], staff:true}
 ];
+/* "how long before": several can be picked per topic (0 = on the day itself). Must match WHEN_DAYS in Code.gs */
+const NWHEN = [[30,"חודש"],[14,"שבועיים"],[7,"שבוע"],[3,"3 ימים"],[2,"יומיים"],[1,"יום"],[0,"ביום עצמו"]];
+const NHOURS = [6,7,8,12,15,17,18,19,20,21,22];   // between 6 and 22, like HOUR_MIN/HOUR_MAX in Code.gs
+const nWhenOf = (p,k)=>((p.when||{})[k]||NTOPICS.find(t=>t.k===k).d).slice();
 const pushReady = ()=>!!(PUSH.apiKey&&PUSH.vapidKey&&CAL_URL);
 function topicOf(e){
   if(isStaff(e)) return "staff";
@@ -1120,11 +1140,11 @@ function notifyEvents(p){
 const nPrefs = ()=>store.get("notify",null);           // {grades,topics,push} once saved on this phone
 function nDefaults(g){
   const gs=g&&g!=="all"?[g]:[];
-  return {grades:gs, topics:g==="staff"?["staff","holidays"]:BAG_GRADES.includes(g)?["bagrut","exams","trips"]:["exams","trips"], push:false};
+  return {grades:gs, topics:g==="staff"?["staff","holidays"]:BAG_GRADES.includes(g)?["bagrut","exams","trips"]:["exams","trips"], when:{}, hour:17, push:false};
 }
 function remindBar(g,label){
   const p=nPrefs(), on=p&&p.push;
-  return `<button type="button" class="nt-link" data-notify="${esc(g||"")}">${NT_BELL}<span>${on?"ההתראות פעילות · שינוי":esc(label||"קבלת התראות")}</span></button>`;
+  return `<button type="button" class="nt-link" data-notify="${esc(g||"")}">${NT_BELL}<span>${on?"ההתראות פעילות · באזור שלי":esc(label||"קבלת התראות")}</span></button>`;
 }
 const NT_BELL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
 function syncBell(){const d=document.querySelector("#bellBtn .bell-dot"),p=nPrefs(); if(d) d.hidden=!(p&&p.push)}
@@ -1136,41 +1156,63 @@ function pushToast(msg){
   setTimeout(()=>{t.classList.remove("on");setTimeout(()=>t.remove(),300)},6500);
 }
 
-/* the choice window */
-function openNotify(g){
-  closeNotify();
-  const p=Object.assign({},nPrefs()||nDefaults(g||store.get("myGrade",null))); p.grades=p.grades.slice(); p.topics=p.topics.slice();
-  const w=document.createElement("div"); w.className="nt-back";
-  w.innerHTML=`<div class="nt-pop" role="dialog" aria-modal="true" aria-labelledby="ntTitle">
-    <div class="nt-head"><h2 id="ntTitle">על מה לקבל התראות?</h2><button type="button" class="iconbtn" data-nt-close aria-label="סגירה">×</button></div>
-    <div class="nt-sec"><h3>שכבה</h3><p class="nt-hint">אפשר לבחור כמה. מורים בוחרים "צוות", ואם רוצים גם שכבה.</p><div class="nt-chips">${[...DATA.grades,"staff"].map(x=>`<button type="button" class="chip" data-nt-grade="${x}" aria-pressed="${p.grades.includes(x)}">${esc(GL[x])}</button>`).join("")}</div></div>
-    <div class="nt-sec"><h3>נושאים</h3><div class="nt-topics"></div></div>
-    <p class="nt-err" role="alert"></p>
-    <div class="nt-acts">${pushReady()?`<button type="button" class="btn" data-nt-push>${p.push?"שמירת השינויים":"הפעלת התראות בטלפון"}</button>`:""}<button type="button" class="btn ghost" data-nt-ics>הוספה ליומן בטלפון</button>${p.push&&pushReady()?`<button type="button" class="btn danger" data-nt-off>כיבוי ההתראות</button>`:""}</div>
+/* ---------- האזור שלי (#me): my grade and my notifications, kept on this phone only ---------- */
+let ntDraft=null;                                   // unsaved changes survive re-renders until saved or switched off
+function ntStart(){
+  const p=Object.assign({},nPrefs()||nDefaults(store.get("myGrade",null))); p.grades=p.grades.slice(); p.topics=p.topics.slice();
+  p.when=Object.fromEntries(NTOPICS.map(t=>[t.k,nWhenOf(p,t.k)])); p.hour=p.hour||17;
+  return p;
+}
+const ntDays=d=>d===0?"ביום עצמו":(NWHEN.find(x=>x[0]===d)||[0,d+" ימים"])[1]+" לפני";
+function ntUpcoming(p,n){
+  const now=new Date(), out=[];
+  notifyEvents(p).forEach(e=>nWhenOf(p,topicOf(e)).forEach(d=>{const at=pd(e.date); at.setDate(at.getDate()-d); at.setHours(p.hour||17,0,0,0); if(at>now) out.push({at,e,d})}));
+  return out.sort((a,b)=>a.at-b.at).slice(0,n);
+}
+function meView(){
+  const g=store.get("myGrade",null), saved=nPrefs(), on=!!(saved&&saved.push);
+  const up=on?ntUpcoming(saved,5):[];
+  return `<div class="masthead"><h2>האזור שלי</h2><p>ההגדרות נשמרות בטלפון הזה בלבד, בלי כניסה ובלי סיסמה.</p></div>
+  <div class="me">
+    <section class="me-card"><h3>השכבה שלי</h3><p class="nt-hint">עמוד הבית מציג את "השבוע שלי" לפי השכבה הזו.</p>
+      <div class="nt-chips">${[...DATA.grades,"staff"].map(x=>`<button type="button" class="chip" data-my-grade="${x}" aria-pressed="${g===x}">${esc(GL[x])}</button>`).join("")}</div></section>
+    <section class="me-card"><div class="me-head"><h3>התראות</h3><span class="me-status ${on?"on":""}">${on?"פעילות בטלפון הזה":"כבויות"}</span></div><div id="ntHost"></div></section>
+    ${up.length?`<section class="me-card"><h3>התזכורות הקרובות</h3><ul class="me-up">${up.map(x=>`<li><span class="me-up-t">יום ${WD[x.at.getDay()]} ${x.at.getDate()}.${x.at.getMonth()+1}, ${x.at.getHours()}:00</span><span class="me-up-e">${esc(x.e.title)}</span><small>${ntDays(x.d)}</small></li>`).join("")}</ul></section>`:""}
   </div>`;
+}
+function mountNotify(host){
+  if(!host) return;
+  const p=ntDraft||(ntDraft=ntStart());
+  host.innerHTML=`<div class="nt-sec"><h4>על אילו שכבות</h4><p class="nt-hint">אפשר לבחור כמה. מורים בוחרים "צוות", ואם רוצים גם שכבה.</p><div class="nt-chips">${[...DATA.grades,"staff"].map(x=>`<button type="button" class="chip" data-nt-grade="${x}" aria-pressed="${p.grades.includes(x)}">${esc(GL[x])}</button>`).join("")}</div></div>
+    <div class="nt-sec"><h4>נושאים ומתי</h4><p class="nt-hint">לכל נושא אפשר לבחור כמה תזכורות, למשל גם שבוע לפני וגם יום לפני.</p><div class="nt-topics"></div></div>
+    <div class="nt-sec nt-hour"><h4><label for="ntHour">באיזו שעה?</label></h4><select id="ntHour" data-nt-hour>${NHOURS.map(h=>`<option value="${h}" ${h===p.hour?"selected":""}>${h}:00</option>`).join("")}</select></div>
+    <p class="nt-err" role="alert"></p>
+    <div class="nt-acts">${pushReady()?`<button type="button" class="btn" data-nt-push>${p.push?"שמירת השינויים":"הפעלת התראות בטלפון"}</button>`:""}<button type="button" class="btn ghost" data-nt-ics>הוספה ליומן בטלפון</button></div>
+    ${p.push&&pushReady()?`<button type="button" class="link-btn me-off" data-nt-off>כיבוי כל ההתראות בטלפון הזה</button>`:""}`;
   const topics=()=>{
     const staff=p.grades.includes("staff");
     if(!staff) p.topics=p.topics.filter(k=>k!=="staff");
-    w.querySelector(".nt-topics").innerHTML=NTOPICS.filter(t=>!t.staff||staff).map(t=>`<label class="nt-topic"><input type="checkbox" data-nt-topic="${t.k}" ${p.topics.includes(t.k)?"checked":""}><span>${esc(t.l)}</span><small>${t.w}</small></label>`).join("");
+    host.querySelector(".nt-topics").innerHTML=NTOPICS.filter(t=>!t.staff||staff).map(t=>{const on=p.topics.includes(t.k);
+      return `<div class="nt-topic ${on?"on":""}"><label><input type="checkbox" data-nt-topic="${t.k}" ${on?"checked":""}><span>${esc(t.l)}</span></label>${on?`<div class="nt-when" role="group" aria-label="מתי להזכיר על ${esc(t.l)}"><span class="nt-when-l">לפני:</span>${NWHEN.map(([d,l])=>`<button type="button" class="nt-day" data-nt-day="${d}" data-nt-of="${t.k}" aria-pressed="${p.when[t.k].includes(d)}">${l}</button>`).join("")}</div>`:""}</div>`}).join("");
   };
   topics();
-  const err=m=>{w.querySelector(".nt-err").textContent=m||""};
+  const err=m=>{host.querySelector(".nt-err").textContent=m||""};
   const valid=()=>{ if(!p.grades.length){err("בחרו לפחות שכבה אחת, או צוות.");return false} if(!p.topics.length){err("סמנו לפחות נושא אחד.");return false} err();return true };
-  w.addEventListener("click",async ev=>{
-    const b=ev.target.closest("button,input"); if(ev.target===w||b&&"ntClose" in b.dataset){closeNotify();return}
-    if(!b) return;
+  host.onclick=ev=>{
+    const b=ev.target.closest("button,input"); if(!b) return;
+    ev.stopPropagation();
     if("ntGrade" in b.dataset){const x=b.dataset.ntGrade,i=p.grades.indexOf(x); if(i<0)p.grades.push(x); else p.grades.splice(i,1); b.setAttribute("aria-pressed",i<0); topics(); err(); return}
-    if("ntTopic" in b.dataset){const x=b.dataset.ntTopic,i=p.topics.indexOf(x); if(b.checked&&i<0)p.topics.push(x); if(!b.checked&&i>=0)p.topics.splice(i,1); err(); return}
+    if("ntTopic" in b.dataset){const x=b.dataset.ntTopic,i=p.topics.indexOf(x); if(b.checked&&i<0)p.topics.push(x); if(!b.checked&&i>=0)p.topics.splice(i,1); topics(); err(); const f=host.querySelector(`[data-nt-topic="${x}"]`); if(f) f.focus(); return}
+    if("ntDay" in b.dataset){const k=b.dataset.ntOf,d=+b.dataset.ntDay,a=p.when[k],i=a.indexOf(d);
+      if(i>=0&&a.length===1){err("צריך לפחות תזכורת אחת לכל נושא מסומן. כדי לוותר על נושא, מורידים את הסימון שלו.");return}
+      if(i<0)a.push(d); else a.splice(i,1); a.sort((x,y)=>y-x); b.setAttribute("aria-pressed",i<0); err(); return}
     if("ntIcs" in b.dataset){ if(valid()) notifyIcs(p); return }
     if("ntPush" in b.dataset){ if(valid()) savePush(p,b); return }
     if("ntOff" in b.dataset){ savePush(Object.assign({},p,{topics:[]}),b,true); return }
-  });
-  document.addEventListener("keydown",ntKey);
-  document.body.appendChild(w);
-  requestAnimationFrame(()=>{w.classList.add("on"); const f=w.querySelector("[data-nt-close]"); if(f) f.focus()});
+  };
+  host.onchange=ev=>{ if(ev.target.matches("[data-nt-hour]")) p.hour=+ev.target.value };
 }
-function ntKey(e){ if(e.key==="Escape") closeNotify() }
-function closeNotify(){ document.querySelectorAll(".nt-back").forEach(x=>x.remove()); document.removeEventListener("keydown",ntKey) }
+function closeNotify(){ ntDraft=null }
 
 /* the calendar file: every coming event of the choice, each with its alarms (17:00, a month / a week / a day before) */
 function notifyIcsText(p){
@@ -1185,7 +1227,7 @@ function notifyIcsText(p){
     L.push("BEGIN:VEVENT","UID:"+e.id+"-n@shaked-darca.github.io","DTSTAMP:"+stamp,
       "DTSTART;VALUE=DATE:"+d8(e.date),"DTEND;VALUE=DATE:"+d8(next(e.end||e.date)),"SUMMARY:"+tx(e.title),
       "DESCRIPTION:"+tx("שק״ד דרכא · "+e.grades.map(x=>GL[x]).join(", ")+(e.note?"\n"+e.note:"")));
-    t.d.forEach(d=>L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+tx(before(d)+": "+e.title),"TRIGGER:-P"+(d>1?(d-1)+"D":"")+"T7H","END:VALARM"));
+    nWhenOf(p,t.k).forEach(d=>{const m=d*1440-(p.hour||17)*60; L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+tx(before(d)+": "+e.title),"TRIGGER:"+(m>0?"-PT"+m+"M":"PT"+(-m)+"M"),"END:VALARM")});
     L.push("END:VEVENT");
   });
   L.push("END:VCALENDAR");
@@ -1215,14 +1257,14 @@ async function pushToken(){
   return firebase.messaging().getToken({vapidKey:PUSH.vapidKey,serviceWorkerRegistration:reg});
 }
 async function pushSend(token,p){
-  const r=await fetch(CAL_URL,{method:"POST",body:JSON.stringify({action:"push-set",token,grades:p.grades,topics:p.topics})}).then(r=>r.json());
+  const r=await fetch(CAL_URL,{method:"POST",body:JSON.stringify({action:"push-set",token,grades:p.grades,topics:p.topics,when:p.when,hour:p.hour})}).then(r=>r.json());
   if(!r||!r.ok) throw new Error(r&&r.error||"no answer");
 }
 async function savePush(p,btn,off){
   const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
   const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
   if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)){
-    if(ios&&!standalone){closeNotify(); pushToast("באייפון ההתראות עובדות רק מתוך האפליקציה: מתקינים את האתר למסך הבית, פותחים אותו משם ובוחרים שוב. בינתיים אפשר ללחוץ על \"הוספה ליומן בטלפון\"."); if(window.installApp) window.installApp(); return;}
+    if(ios&&!standalone){pushToast("באייפון ההתראות עובדות רק מתוך האפליקציה: מתקינים את האתר למסך הבית, פותחים אותו משם ובוחרים שוב. בינתיים אפשר ללחוץ על \"הוספה ליומן בטלפון\"."); if(window.installApp) window.installApp(); return;}
     pushToast("הדפדפן הזה לא תומך בהתראות. אפשר ללחוץ על \"הוספה ליומן בטלפון\" במקום."); return;
   }
   // the permission question must come straight from the tap, before anything else waits
@@ -1231,15 +1273,15 @@ async function savePush(p,btn,off){
   const old=btn.textContent; btn.disabled=true; btn.textContent="רגע…";
   try{
     await pushSend(await pushToken(),p);
-    store.set("notify",off?null:{grades:p.grades,topics:p.topics,push:true}); store.set("pushAt",Date.now());
-    closeNotify(); render(); syncBell();
+    store.set("notify",off?null:{grades:p.grades,topics:p.topics,when:p.when,hour:p.hour,push:true}); store.set("pushAt",Date.now());
+    ntDraft=null; render(); syncBell(); window.scrollTo(0,0);
     pushToast(off?"ההתראות כובו.":"מעולה! ההתראות מופעלות. אפשר לשנות את הבחירה מתי שרוצים.");
   }catch(err){
     console.warn("push",err); btn.disabled=false; btn.textContent=old;
     pushToast("לא הצלחנו "+(off?"לכבות":"להפעיל")+" את ההתראות כרגע. נסו שוב בעוד כמה דקות.");
   }
 }
-document.addEventListener("click",ev=>{const b=ev.target.closest("[data-notify]"); if(!b) return; ev.preventDefault(); ev.stopPropagation(); openNotify(b.dataset.notify);});
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-notify]"); if(!b) return; ev.preventDefault(); ev.stopPropagation(); if(location.hash!=="#me") location.hash="#me"; else render(); window.scrollTo(0,0);});
 /* Firebase sometimes changes a phone's address; once a week the app quietly sends the current one again */
 window.addEventListener("load",()=>{
   const p=nPrefs();
@@ -1779,8 +1821,9 @@ function render(){
   const note = DATA.sample?`<div class="sample-note"><b>תוכן לדוגמה.</b> השוקדים והעדכונים כאן להמחשה עד שיוזן התוכן האמיתי. האירועים בלוח השנה אמיתיים.</div>`:"";
   closeMenu();
   const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${t==="students"?(S.type==="staff"?"צוות · כל האירועים":gAll()?"לוח כללי":esc(gradesLabel())):VIEWS[t].label}</b></p>`:"";
-  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,links:linksView,guides:guidesView,contacts:contactsView}[t]();
+  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,links:linksView,guides:guidesView,contacts:contactsView,me:meView}[t]();
   $("#view").innerHTML = `<div class="view">${note}${body}</div>`;
+  if(t==="me") mountNotify(document.getElementById("ntHost")); else ntDraft=null;
   $("#editbar").innerHTML = S.editing?`<div class="edit-bar"><b>מצב עריכה</b><span>${S.dirty?"יש שינויים שעוד לא פורסמו":"כל השינויים פורסמו"}</span><span class="spacer"></span>${DATA.sample?`<button class="btn" data-clear-sample>הסרת התוכן לדוגמה</button>`:""}<button class="btn" data-publish ${S.dirty?"":"disabled"}>פרסום השינויים</button><span class="msg" id="pubMsg" role="status" style="color:inherit"></span></div>`:"";
   $("#editToggle").textContent = S.editing?"סיום עריכה":"מצב עריכה";
   if(t==="forms"&&S.showSubs) loadSubs();
