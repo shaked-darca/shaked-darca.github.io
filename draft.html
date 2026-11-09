@@ -678,31 +678,6 @@ nav.tabs a[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .lcard .lbtns{display:flex;flex-wrap:wrap;gap:8px}
 .lcard .lbtns .btn{min-height:46px}
 .links-help{margin:4px 0 0;color:var(--muted)}
-/* contact page */
-.ct{display:grid;gap:22px;max-width:860px}
-.ct-offices{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-.ct-office{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--palm);border-radius:var(--r);padding:16px;display:grid;gap:10px;align-content:start}
-.ct-office h3{margin:0;font-size:1.2rem}
-.ct-office .ct-num{margin:0;font-size:1.35rem;font-weight:700;direction:ltr;text-align:right;letter-spacing:.02em}
-.ct-office .ct-mail{margin:0;color:var(--muted);font-size:.92rem;word-break:break-all}
-.ct-acts{display:flex;flex-wrap:wrap;gap:8px}
-.ct-acts .btn{min-height:46px;gap:6px;flex:1 1 0;justify-content:center;padding:10px 8px;white-space:nowrap}
-.ct-acts .btn svg{width:18px;height:18px;flex:none}
-.btn.wa{background:#1f7a4d}
-.ct-group h3{margin:0 0 8px;font-size:1.05rem;color:var(--muted);font-weight:700}
-.ct-list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
-.ct-list li{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
-.ct-list li:first-child{border-top:0}
-.ct-who{flex:1;min-width:0;display:grid;gap:1px}
-.ct-who b{font-size:1.05rem}
-.ct-who span{color:var(--muted);font-size:.92rem}
-.ct-who .ct-det{direction:ltr;text-align:right;font-size:.85rem}
-.ct-icons{display:flex;gap:8px;flex:none}
-.ct-icons a{display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--line);border-radius:var(--r);color:var(--water);background:var(--surface)}
-.ct-icons a:hover{background:var(--water-soft)}
-.ct-icons a:focus-visible{outline:3px solid var(--water);outline-offset:2px}
-.ct-icons svg{width:20px;height:20px}
-@media (max-width:560px){.ct-who .ct-det{display:none}}
 /* guides */
 .guides{display:grid;gap:10px;max-width:760px}
 .guide{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);scroll-margin-top:12px}
@@ -775,17 +750,11 @@ h1,h2,h3{font-weight:700;letter-spacing:-.005em}
 nav.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--brick);font-weight:700}
 .nav-tools{display:flex;align-items:center;gap:8px}
 .refresh-btn{border-radius:4px}
-@media (min-width:761px) and (max-width:960px){.navbar nav.tabs a{padding:0 6px}}
 @media (max-width:760px){
   .navbar .wrap.nav-in{min-height:0;gap:0}
   .brand{flex:1}
   .navbar nav.tabs{order:3;flex:1 0 100%;margin-inline:-6px;border-top:1px solid var(--line)}
   .navbar nav.tabs a{padding:11px 7px;font-size:.92rem}
-  .navbar nav.tabs{justify-content:space-between;gap:0}
-}
-@media (max-width:440px){
-  .navbar nav.tabs a{padding:11px 3px;font-size:.8rem}
-  .navbar nav.tabs a .chev{margin-inline-start:2px}
   .refresh-btn{display:grid!important;width:36px;height:36px}
 }
 
@@ -879,7 +848,6 @@ main.wrap{padding-top:18px}
       <a href="#staff" data-area="staff">צוות</a>
       <a href="#links" data-area="links">קישורים</a>
       <a href="#guides" data-area="guides">מדריכים</a>
-      <a href="#contacts" data-area="contacts">צור קשר</a>
     </nav>
     <div class="nav-tools"><button class="edit-link" id="editToggle" hidden>מצב עריכה</button>
     <button type="button" class="refresh-btn bell-btn" id="bellBtn" data-notify="" aria-label="האזור שלי" title="האזור שלי"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="bell-dot" hidden></span></button>
@@ -967,10 +935,9 @@ const VIEWS = {
   students:{area:"students",label:"לוח שנה"}, placements:{area:"students",label:"שיבוצי כיתות"}, forms:{area:"students",label:"טפסים"},
   staff:{area:"staff",label:"הזמנת מחשבים"}, computers:{area:"staff",label:"הזמנת מחשבים"},
   links:{area:"links",label:"קישורים חשובים"}, me:{area:"me",label:"האזור שלי"},
-  guides:{area:"guides",label:"מדריכים"},
-  contacts:{area:"contacts",label:"צור קשר"}
+  guides:{area:"guides",label:"מדריכים"}
 };
-const SUB = {home:[], students:["students","placements"], staff:[], links:[], guides:[], me:[], contacts:[]};
+const SUB = {home:[], students:["students","placements"], staff:[], links:[], guides:[], me:[]};
 const tab = ()=>{const h=location.hash.slice(1);return VIEWS[h]?h:"home"};
 window.addEventListener("hashchange",()=>{S.openForm=null;render()});
 /* dropdown menus under the אירועים שכבתיים / צוות tabs */
@@ -1847,44 +1814,6 @@ function linksView(){
   <p class="links-help">לא מצליחים להיכנס? <a href="#guides" data-guide="g-login">מדריך כניסה למשו״ב ולשחף</a></p>
   </div>`;
 }
-/* contact page. To change a person: edit their line below (name, role, phone, email). */
-const CONTACT_OFFICES=[
-  {name:"מזכירות בית הספר", phone:"04-8551036", wa:"04-8551036", email:"einat@shakeds.co.il"},
-  {name:"הנהלת חשבונות",   phone:"04-8551040", wa:"04-8551040", email:"allag@shakedarca.org.il"}
-];
-const CONTACT_GROUPS=[
-  {title:"הנהלה", people:[
-    ["עמרי עמירם","מנהל בית הספר","050-3231336","1002364787@hityash.org.il"],
-    ["לינה שגיא","מנהלת חטיבת הביניים","055-8838607","1002170586@hityash.org.il"]]},
-  {title:"ייעוץ", people:[
-    ["תהילה ריכטר","יועצת חטיבת הביניים","052-8597221","1002186671@hityash.org.il"],
-    ["חנה ברנס","יועצת שכבות ט׳ ויא׳","052-2973252","1002165211@hityash.org.il"],
-    ["נטע לב","יועצת שכבות י׳ ויב׳","054-7474036","1002452204@hityash.org.il"]]},
-  {title:"רכזי חטיבת הביניים", people:[
-    ["חבצלת גרוס","רכזת חטיבה – בנות","050-7279395","1002203020@hityash.org.il"],
-    ["אמיר הלוי","רכז חטיבה – בנים","054-6376609","1002643288@hityash.org.il"]]},
-  {title:"רכזי שכבות", people:[
-    ["ינון דיין","רכז שכבה ט׳","052-2834490","1002407429@hityash.org.il"],
-    ["חיים ראוכברגר","רכז שכבה י׳","054-5241328","1002355004@hityash.org.il"],
-    ["ורדית דור","רכזת שכבה יא׳","053-3398553","1002178202@hityash.org.il"],
-    ["מיטל אלון","רכזת שכבה יב׳","054-3028464","1002626220@hityash.org.il"]]}
-];
-const IC={
-  tel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
-  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>',
-  wa:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.2c0-.1-.2-.2-.4-.3z"/></svg>'
-};
-const telHref=n=>"tel:"+n.replace(/\D/g,"");
-const waHref=n=>"https://wa.me/972"+n.replace(/\D/g,"").replace(/^0/,"");
-function contactsView(){
-  const offices=CONTACT_OFFICES.map(o=>`<section class="ct-office"><h3>${esc(o.name)}</h3>
-    <p class="ct-num">${esc(o.phone)}</p><p class="ct-mail">${esc(o.email)}</p>
-    <div class="ct-acts"><a class="btn" href="${telHref(o.phone)}">${IC.tel}התקשרו</a>${o.wa?`<a class="btn wa" href="${waHref(o.wa)}" target="_blank" rel="noopener">${IC.wa}וואטסאפ</a>`:""}<a class="btn ghost" href="mailto:${esc(o.email)}">${IC.mail}מייל</a></div></section>`).join("");
-  const groups=CONTACT_GROUPS.map(g=>`<section class="ct-group"><h3>${esc(g.title)}</h3><ul class="ct-list">${g.people.map(([n,r,ph,em])=>`<li>
-    <div class="ct-who"><b>${esc(n)}</b><span>${esc(r)}</span><span class="ct-det">${esc(ph)} · ${esc(em)}</span></div>
-    <div class="ct-icons"><a href="${telHref(ph)}" aria-label="להתקשר ל${esc(n)} ${esc(ph)}" title="${esc(ph)}">${IC.tel}</a><a href="mailto:${esc(em)}" aria-label="מייל ל${esc(n)}" title="${esc(em)}">${IC.mail}</a></div></li>`).join("")}</ul></section>`).join("");
-  return `<div class="masthead"><h2>צור קשר</h2><p>מזכירות, הנהלה, יועצות ורכזים</p></div><div class="ct"><div class="ct-offices">${offices}</div>${groups}</div>`;
-}
 /* link from another page straight to an open guide */
 document.addEventListener("click",ev=>{const a=ev.target.closest("[data-guide]");if(!a)return;ev.preventDefault();location.hash="guides";setTimeout(()=>{const el=document.getElementById(a.dataset.guide);if(!el)return;el.open=true;el.scrollIntoView({behavior:"smooth",block:"start"})},60)});
 function guidesView(){
@@ -1934,7 +1863,7 @@ function render(){
   const note = DATA.sample?`<div class="sample-note"><b>תוכן לדוגמה.</b> השוקדים והעדכונים כאן להמחשה עד שיוזן התוכן האמיתי. האירועים בלוח השנה אמיתיים.</div>`:"";
   closeMenu();
   const sub = SUB[area].length?`<p class="crumb">${AREA_NAME[area]} · <b>${t==="students"?(S.type==="staff"?"צוות · כל האירועים":gAll()?"לוח כללי":esc(gradesLabel())):VIEWS[t].label}</b></p>`:"";
-  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,links:linksView,guides:guidesView,me:meView,contacts:contactsView}[t]();
+  const body = sub + {home:homeView,shokdim:shokdimView,gallery:galleryView,students:calendarView,staff:computersView,placements:placementsView,forms:formsView,computers:computersView,links:linksView,guides:guidesView,me:meView}[t]();
   $("#view").innerHTML = `<div class="view">${note}${body}</div>`;
   if(t==="me") mountNotify(document.getElementById("ntHost")); else ntDraft=null;
   $("#editbar").innerHTML = S.editing?`<div class="edit-bar"><b>מצב עריכה</b><span>${S.dirty?"יש שינויים שעוד לא פורסמו":"כל השינויים פורסמו"}</span><span class="spacer"></span>${DATA.sample?`<button class="btn" data-clear-sample>הסרת התוכן לדוגמה</button>`:""}<button class="btn" data-publish ${S.dirty?"":"disabled"}>פרסום השינויים</button><span class="msg" id="pubMsg" role="status" style="color:inherit"></span></div>`:"";
