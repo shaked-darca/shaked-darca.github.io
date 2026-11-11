@@ -1,0 +1,228 @@
+
+/* ===================================================================
+   שכבת העיצוב המקצועית (design/pro.css)
+   נכתבת פעם אחת כאן, ומוטמעת באתר על ידי scripts/build_next.py.
+   כל מה שמתחת מחליף או משלים את הכללים שמעליו, בלי לשנות את הלוגיקה.
+   =================================================================== */
+
+/* ---------- 1. אותיות: שתי משפחות בלבד, מתארחות באתר עצמו ---------- */
+@font-face{font-family:"Assistant";font-style:normal;font-weight:200 800;font-display:swap;src:url(fonts/assistant-hebrew-wght-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:"Assistant";font-style:normal;font-weight:200 800;font-display:swap;src:url(fonts/assistant-latin-wght-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-hebrew-wght-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:"Frank Ruhl Libre";font-style:normal;font-weight:300 900;font-display:swap;src:url(fonts/frank-ruhl-libre-latin-wght-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+:root{
+  --f-display:"Frank Ruhl Libre","Noto Serif Hebrew","David Libre","Times New Roman",serif;
+  --f-hand:var(--f-display);
+  --r:14px;
+  --lift:0 1px 2px rgb(16 41 35 / .08),0 12px 32px rgb(16 41 35 / .12);
+  --bar-h:64px;
+}
+html{overflow-x:clip;scroll-padding-top:calc(var(--bar-h) + 12px)}
+body{font-size:1rem;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-weight:500;letter-spacing:-.005em}
+html[data-fs="1"]{font-size:112.5%}
+html[data-fs="2"]{font-size:125%}
+
+/* ---------- 2. מצב כהה ---------- */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1714;--surface:#16221e;--sunk:#1e2e29;--ink:#e7efeb;--muted:#9fb2ac;--line:#2b3e38;
+  --water:#7cc4e4;--water-soft:#173644;--palm:#8fd09a;--palm-soft:#1b3a25;
+  --exam:#f2988f;--exam-soft:#45211e;--holiday:#e6c170;--holiday-soft:#3c2f12;
+  --staff:#bba3ec;--staff-soft:#2d2444;
+  --hero:#10291f;--hero-2:#173a30;
+  --lift:0 1px 2px rgb(0 0 0 / .4),0 12px 32px rgb(0 0 0 / .45);
+}
+:root[data-theme="dark"] .btn.wa,:root[data-theme="dark"] .nt-day[aria-pressed="true"]{color:#06120e}
+:root[data-theme="dark"] .btn.wa{background:#5fd08f}
+:root[data-theme="dark"] .cp-item.cart,:root[data-theme="dark"] .cp-note{background:var(--holiday-soft)}
+:root[data-theme="dark"] .me-status.on{background:var(--palm-soft)}
+:root[data-theme="dark"] .cp-item .tag.ice{background:var(--exam-soft);color:var(--exam)}
+:root[data-theme="dark"] .page-thumb img,:root[data-theme="dark"] .sec-imgs img,:root[data-theme="dark"] .photo img{filter:brightness(.92)}
+:root[data-theme="dark"] .cell.today,:root[data-theme="dark"] .cell.today.sel{box-shadow:none}
+
+/* ניגודיות גבוהה */
+:root[data-contrast="high"]{--muted:#2a3634;--line:#7b8a86;--water:#0f5275;--palm:#1f5529;--exam:#8f2019}
+:root[data-contrast="high"][data-theme="dark"]{--muted:#dbe6e2;--line:#8ea39c;--water:#a9defa;--palm:#b4ecbd;--exam:#ffc0b9}
+:root[data-contrast="high"] a:not(.btn):not(.dock a):not(nav.tabs a){text-decoration:underline}
+:root[data-contrast="high"] .past,:root[data-contrast="high"] .cell.past,:root[data-contrast="high"] .bg-row.past{opacity:.8}
+/* בלי תנועה */
+:root[data-motion="off"] *,:root[data-motion="off"] *::before,:root[data-motion="off"] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+
+/* קישור דילוג לתוכן */
+.skip{position:fixed;inset-block-start:8px;inset-inline-start:8px;z-index:100;background:var(--surface);color:var(--ink);font-weight:700;border-radius:10px;padding:10px 16px;box-shadow:var(--lift);transform:translateY(-200%)}
+.skip:focus{transform:none}
+
+/* ---------- 3. פס עליון אחד: סמל, שם, ניווט ---------- */
+.top{position:sticky;top:0;z-index:20;background:var(--hero);color:var(--hero-ink)}
+.hero{background:none;overflow:visible}
+.hero::before,.waves,.hero .vision{display:none}
+.hero-in{display:flex;align-items:center;min-height:var(--bar-h);gap:0;padding-block:calc(8px + env(safe-area-inset-top,0px)) 8px}
+.brand{gap:12px}
+.emblem{width:46px;height:46px;border:2px solid rgb(255 255 255 / .9);box-shadow:none}
+.brand-text{gap:0}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:1.5rem;line-height:1.1;letter-spacing:0}
+.motto{font-family:var(--f-display);font-weight:400;font-size:.9rem;line-height:1.2;color:var(--hero-water);margin-top:1px}
+.navbar{background:none;border-bottom:0;color:var(--hero-ink)}
+.navbar nav.tabs{gap:2px}
+.navbar nav.tabs a{color:var(--hero-mute);border-bottom:0;border-radius:999px;padding:8px 14px;font-size:1rem;font-weight:600;transition:background-color .15s,color .15s}
+.navbar nav.tabs a:hover{color:#fff;background:rgb(255 255 255 / .08)}
+.navbar nav.tabs a[aria-current="page"]{color:#fff;background:rgb(255 255 255 / .14);border-bottom-color:transparent}
+.navbar :focus-visible{outline-color:var(--hero-water)}
+.navbar .refresh-btn,.navbar .edit-link{background:none;border-color:rgb(255 255 255 / .28);color:var(--hero-ink)}
+.navbar .refresh-btn:hover,.navbar .edit-link:hover{background:rgb(255 255 255 / .1);color:#fff}
+.navbar .refresh-btn{width:38px;height:38px}
+.navbar .bell-dot{box-shadow:0 0 0 2px var(--hero)}
+.dropmenu{pointer-events:auto;color:var(--ink);margin-top:6px}
+.edit-bar{top:calc(var(--bar-h) + 8px)}
+.guide{scroll-margin-top:calc(var(--bar-h) + 12px)}
+
+/* מסך רחב: הניווט יושב באותה שורה עם הסמל */
+@media (min-width:1000px){
+  .top{position:sticky}
+  .navbar{position:absolute;inset:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none}
+  .navbar .wrap{height:100%;justify-content:flex-end;pointer-events:none}
+  .navbar .wrap>*{pointer-events:auto}
+  .navbar nav.tabs{flex:0 1 auto}
+}
+/* מסך בינוני: שורת ניווט שנייה, כהה מעט */
+@media (min-width:641px) and (max-width:999.98px){
+  :root{--bar-h:112px}
+  .navbar{background:rgb(0 0 0 / .16)}
+  .navbar .wrap{padding-block:6px}
+}
+/* טלפון: פס עליון דק שנגלל עם הדף, הניווט עובר למטה */
+@media (max-width:640px){
+  :root{--bar-h:0px}
+  .top{position:relative}
+  .hero-in{min-height:56px}
+  .emblem{width:40px;height:40px}
+  .brand{gap:10px}
+  .brand h1{font-size:1.3rem}
+  .motto{font-size:.8rem}
+  .navbar{position:absolute;inset:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none}
+  .navbar .wrap{height:100%;flex-wrap:nowrap;justify-content:flex-end;gap:8px;pointer-events:none}
+  .navbar .wrap>*{pointer-events:auto}
+  .navbar nav.tabs{display:none}
+  .navbar .refresh-btn{width:36px;height:36px;display:grid}
+  .dropmenu{display:none}
+}
+
+/* ---------- 4. סרגל תחתון בטלפון ---------- */
+.dock{display:none}
+@media (max-width:640px){
+  .dock{position:fixed;inset:auto 0 0 0;z-index:25;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:color-mix(in srgb,var(--surface) 90%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);border-top:1px solid var(--line);padding:0 max(4px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(4px,env(safe-area-inset-left,0px))}
+  .dock a,.dock button{position:relative;display:grid;justify-items:center;align-content:center;gap:3px;min-height:58px;padding:6px 2px;border:0;background:none;font:inherit;font-size:.72rem;font-weight:700;line-height:1;color:var(--muted);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .dock svg{width:23px;height:23px}
+  .dock [aria-current="page"]{color:var(--palm)}
+  .dock [aria-current="page"]::before{content:"";position:absolute;top:0;inset-inline:28%;height:3px;border-radius:0 0 3px 3px;background:var(--palm)}
+  .dock :focus-visible{outline-offset:-3px;border-radius:12px}
+  #root>main{padding-bottom:24px}
+  #root>.foot{padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}
+  .install-pop,.ios-tip,.push-toast{bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+}
+
+/* ---------- 5. עמוד הבית: לוח היום ---------- */
+.tday{position:relative;background:var(--hero);color:var(--hero-ink);margin:-22px calc(50% - 50vw) 0;padding-top:26px}
+.tday::before{content:"";position:absolute;inset:0;background:radial-gradient(70% 130% at 100% 0%,var(--hero-2),transparent 70%);pointer-events:none}
+.tday-in{position:relative;max-width:1040px;margin:0 auto;padding-inline:max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-left,0px));padding-bottom:86px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,22rem);gap:20px 48px;align-items:end}
+.tday-day{margin:0;color:var(--hero-mute);font-weight:600;font-size:1.05rem}
+.tday-heb{font-family:var(--f-display);font-weight:500;font-size:clamp(2.5rem,8.2vw,4.6rem);line-height:1;letter-spacing:-.015em;margin:6px 0 0;text-wrap:balance}
+.tday-next{margin:16px 0 0;display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:1.02rem;color:var(--hero-ink)}
+.tday-next b{font-weight:700;color:var(--hero-water)}
+.tday-quote{margin:0;padding-inline-start:18px;border-inline-start:1px solid var(--hero-line);display:grid;gap:6px}
+.tday-quote blockquote{margin:0;font-family:var(--f-display);font-size:1.15rem;line-height:1.5;text-wrap:pretty}
+.tday-quote figcaption{color:var(--hero-water);font-size:.88rem;font-weight:600}
+.tday-wave{position:absolute;inset:auto 0 -1px 0;display:block;width:100%;height:30px}
+.tday+.myweek{position:relative;margin-top:-58px;box-shadow:var(--lift);border-color:transparent}
+:root[data-theme="dark"] .tday+.myweek{border-color:var(--line)}
+@media (max-width:760px){
+  .tday-in{grid-template-columns:minmax(0,1fr);padding-bottom:78px}
+  .tday-quote blockquote{font-size:1rem}
+}
+@media (max-width:640px){
+  .tday{margin-top:-12px;padding-top:14px}
+  .tday-day{font-size:.95rem}
+  .tday+.myweek{margin-top:-52px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .tday-heb{animation:tdayIn .7s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes tdayIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+}
+
+/* ---------- 6. ליטוש רכיבים ---------- */
+.myweek{padding:18px 20px;gap:14px}
+.mw-head h2{font-size:1.5rem}
+.mw-day{border-radius:10px;padding:10px 12px}
+.sec-h h2,.masthead h2{font-weight:500}
+.masthead h2{font-size:clamp(1.7rem,4vw,2.2rem)}
+.issue h2{font-weight:500}
+.issue{padding:24px 26px}
+@media (max-width:640px){.issue{padding:18px 16px}.myweek{padding:14px}}
+.btn{border-radius:10px;transition:filter .15s,background-color .15s}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost:hover{filter:none;background:var(--water-soft)}
+.chip,.mnav,.gcal-add,.seg button{transition:background-color .15s,border-color .15s,color .15s}
+.chip:hover{border-color:var(--palm)}
+.field input:focus,.field select:focus,.field textarea:focus,.sig-head input:focus{outline:3px solid color-mix(in srgb,var(--water) 35%,transparent);outline-offset:0;border-color:var(--water)}
+/* סמלי אימוג׳י בכותרות: יורדים, הכותרת מדברת בעד עצמה */
+.lcard h3>span[aria-hidden="true"],.guide .gi{display:none}
+.lcard{padding:18px 20px}
+.ct-office{border-top-width:1px;position:relative;overflow:hidden}
+.ct-office::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--palm)}
+
+/* תמונות רצות: ממלאות את המסגרת, עם רקע מטושטש מאותה תמונה במקום פסים כהים */
+.slide-stage{background:var(--sunk)}
+.slide a{position:relative;overflow:hidden;background:var(--ph) center/cover no-repeat}
+.slide a::before{content:"";position:absolute;inset:0;-webkit-backdrop-filter:blur(22px) brightness(.8);backdrop-filter:blur(22px) brightness(.8)}
+.slide img{position:relative}
+.slide{grid-template-rows:minmax(0,1fr)}
+.slide figcaption{position:absolute;inset:auto 0 0 0;background:linear-gradient(to top,rgb(8 20 17 / .88),rgb(8 20 17 / 0));padding:34px 14px 12px}
+.gallery{gap:14px}
+.photo{border-radius:var(--r)}
+.photo img{transition:transform .35s ease}
+.photo:hover img{transform:scale(1.03)}
+
+/* תחתית */
+.foot{margin-top:40px}
+.foot-in{padding-block:28px}
+.foot-brand b{font-family:var(--f-display)}
+.foot-legal{grid-column:1/-1;margin:0;padding-top:16px;border-top:1px solid rgb(255 255 255 / .12);color:var(--hero-mute);font-size:.85rem;display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:center}
+.foot-legal button{border:0;background:none;color:inherit;font:inherit;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+
+/* ---------- 7. חלון "תצוגה ונגישות" ותפריט "עוד" ---------- */
+.sheet{border:0;padding:0;background:var(--surface);color:var(--ink);width:min(420px,calc(100vw - 24px));border-radius:18px;box-shadow:var(--lift);max-height:min(86dvh,640px);overflow:auto}
+.sheet::backdrop{background:rgb(8 18 15 / .5)}
+.sheet-in{display:grid;gap:18px;padding:18px 20px 22px}
+.sheet-head{display:flex;align-items:center;gap:10px}
+.sheet-head h2{flex:1;font-size:1.35rem}
+.sheet-x{border:1px solid var(--line);background:none;border-radius:50%;width:38px;height:38px;cursor:pointer;font-size:1.2rem;line-height:1;color:var(--muted)}
+.sheet-links{display:none;gap:2px;margin:0;padding:0;list-style:none}
+.sheet-links a{display:flex;align-items:center;gap:12px;padding:13px 6px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);font-weight:700;font-size:1.05rem}
+.sheet-links a svg{width:22px;height:22px;color:var(--palm);flex:none}
+.sheet-links a::after{content:"";margin-inline-start:auto;width:8px;height:8px;border:solid var(--muted);border-width:0 0 2px 2px;transform:rotate(45deg)}
+.sheet-set{display:grid;gap:14px}
+.sheet-set h3{font-family:var(--f-body);font-weight:800;font-size:.95rem;color:var(--muted)}
+.set-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.set-row>span{font-weight:700}
+.set-row .seg button{min-height:38px;padding:6px 14px;font-size:.95rem}
+.switch{position:relative;width:52px;height:30px;border-radius:999px;border:0;background:var(--line);cursor:pointer;flex:none;transition:background-color .15s}
+.switch::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:inset-inline-start .15s}
+.switch[aria-checked="true"]{background:var(--palm)}
+.switch[aria-checked="true"]::after{inset-inline-start:25px}
+@media (max-width:640px){
+  .sheet{margin:auto 0 0;width:100vw;max-width:100vw;border-radius:20px 20px 0 0;max-height:88dvh;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .sheet[data-mode="more"] .sheet-links{display:grid}
+  .sheet[open]{animation:sheetUp .25s cubic-bezier(.2,.7,.2,1)}
+  @keyframes sheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+}
+
+/* הדפסה: לוח השנה והשוקדים יוצאים נקיים */
+@media print{
+  .top,.dock,.foot,.controls,.sync,.slides,.install-pop,.ios-tip,.tday-wave,#editbar{display:none!important}
+  body{background:#fff}
+  .tday{background:none;color:#000;margin:0;padding:0}
+  .tday+.myweek{margin-top:0;box-shadow:none;border-color:#999}
+  .acc details>*{display:block}
+}

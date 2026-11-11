@@ -38,7 +38,7 @@ self.addEventListener("fetch", e => {
   }
 
   // own media, icons and Google Fonts: cache first
-  const cacheable = (url.origin === location.origin && /\/(media|icons)\//.test(url.pathname)) ||
+  const cacheable = (url.origin === location.origin && /\/(media|icons|fonts)\//.test(url.pathname)) ||
     url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (cacheable) {
     e.respondWith(
