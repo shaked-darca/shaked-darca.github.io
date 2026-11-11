@@ -991,6 +991,32 @@ html[data-fs="2"]{font-size:125%}
   .tday+.myweek{margin-top:0;box-shadow:none;border-color:#999}
   .acc details>*{display:block}
 }
+
+/* ---------- 8. תיקון אחרי משוב: בטלפון לוח היום דק, והסרגל התחתון כהה וברור ---------- */
+.tday-heb{font-size:clamp(2rem,5vw,3.4rem)}
+.tday-in{padding-bottom:80px}
+@media (max-width:640px){
+  .tday{padding-top:8px}
+  .tday-in{padding-bottom:50px;gap:0}
+  .tday-in>div{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;gap:0 12px}
+  .tday-day{font-size:.85rem}
+  .tday-next{margin:0;font-size:.85rem;grid-column:2;grid-row:1}
+  .tday-heb{grid-column:1/-1;font-size:1.7rem;margin-top:2px;animation:none}
+  .tday-quote{display:none}
+  .tday-wave{height:16px}
+  .tday+.myweek{margin-top:-38px}
+  .myweek .mw-pick{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-14px;padding-inline:14px}
+  .myweek .mw-pick::-webkit-scrollbar{display:none}
+  .myweek .mw-pick .chip{flex:none}
+
+  .dock{background:var(--hero);-webkit-backdrop-filter:none;backdrop-filter:none;border-top:0;box-shadow:0 -2px 14px rgb(0 0 0 / .22)}
+  .dock a,.dock button{color:var(--hero-mute);font-size:.8rem;min-height:62px;gap:5px}
+  .dock svg{position:relative;width:24px;height:24px}
+  .dock [aria-current="page"]{color:#fff}
+  .dock [aria-current="page"]::before{top:7px;inset-inline:calc(50% - 30px);height:30px;border-radius:999px;background:rgb(255 255 255 / .18)}
+  .dock :focus-visible{outline-color:var(--hero-water)}
+  #root>.foot{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+}
 </style>
 <template id="shell">
 <a class="skip" href="#view">דילוג לתוכן</a>
