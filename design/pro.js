@@ -101,3 +101,45 @@ function proSync(t){
   if(proLast!==null&&proLast!==t) window.scrollTo(0,0);
   proLast=t;
 }
+
+/* ---- שוקדים כמגזין (מחליף את רשימת החיצים): מכתב פותח, כתבות עם תמונה ותקציר, קריאה במסך מלא ---- */
+function issueParts(p){
+  const paras=String(p.body||"").split(/\n\s*\n/).filter(Boolean);
+  const parts=(p.sections||[]).map(x=>({t:x.t,b:x.b||[],img:x.img||[],links:x.links||[]}));
+  if(paras.length) parts.unshift({t:"דבר המנהל",b:paras,img:[],links:[],lead:true});
+  return parts;
+}
+function issueCard(p,mode){
+  if(S.editing&&S.editPost===p.id) return issueEditForm(p);
+  const parts=issueParts(p), lead=parts[0]&&parts[0].lead?parts[0]:null;
+  const stories=parts.map((x,i)=>[x,i]).filter(([x])=>!x.lead);
+  const fi=stories.findIndex(([x])=>x.img.length), feat=fi>=0?stories.splice(fi,1)[0]:null;
+  const home=mode==="home", shown=home?stories.slice(0,4):stories, rest=stories.length-shown.length;
+  const card=([x,i],big)=>`<button type="button" class="st${big?" feat":""}" data-story="${p.id}:${i}"><span class="st-t"><b>${esc(x.t)}</b><span>${esc((x.b[0]||"").replace(/\s+/g," "))}</span></span>${x.img.length?`<img src="${esc(x.img[0])}" alt="" loading="lazy">`:""}</button>`;
+  const fallback=!stories.length&&!feat&&p.toc&&p.toc.length?`<div class="toc"><span class="label">עוד בגיליון</span><ul>${p.toc.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:"";
+  return `<article class="issue mag">
+    <header class="issue-head"><span class="kicker">שוקדים על המלאכה</span><span class="meta">${esc(p.heb||"")}${p.heb?", ":""}${fmt(p.date)}</span></header>
+    <h2>${esc(p.title)}</h2>
+    ${lead?`<div class="mag-lead"><h3>דבר המנהל</h3><p>${esc(lead.b.slice(0,2).join(" "))}</p><button type="button" class="mag-go" data-story="${p.id}:0">להמשך המכתב</button></div>`:""}
+    ${feat?card(feat,true):""}
+    ${shown.length?`<div class="mag-list${home?"":" all"}">${shown.map(s=>card(s,false)).join("")}</div>`:""}${fallback}
+    <div class="row">${home&&rest>0?`<a class="btn" href="#shokdim">עוד ${rest} כתבות בגיליון</a>`:""}${p.pages&&p.pages.length?`<button class="btn ghost" data-issue="${p.id}" data-page="0">הגיליון המקורי</button>`:""}${p.pdf&&S.cap.downloads?`<button class="btn ghost" data-pdf="${p.id}">הורדת PDF</button>`:""}<span class="msg" id="pdfMsg-${p.id}" role="status"></span>${home&&rest<=0?`<a class="btn ghost" href="#shokdim">גיליונות קודמים</a>`:""}${S.editing?`<button class="btn" data-edit-post="${p.id}">עריכת הגיליון</button><button class="btn danger" data-del-post="${p.id}">מחיקה</button>`:""}</div>
+  </article>`;
+}
+let reader=null;
+function openStory(pid,i){
+  const p=DATA.posts.find(x=>x.id===pid); if(!p) return;
+  const parts=issueParts(p), x=parts[i]; if(!x) return;
+  if(!reader){ reader=document.createElement("dialog"); reader.className="reader"; document.body.appendChild(reader);
+    reader.addEventListener("click",e=>{ if(e.target===reader){reader.close();return}
+      const b=e.target.closest("button"); if(!b) return;
+      if("rdClose" in b.dataset) reader.close(); else if(b.dataset.rd) openStory(reader.dataset.pid,Number(b.dataset.rd)); }); }
+  reader.dataset.pid=pid; reader.setAttribute("aria-label",x.t);
+  const prev=parts[i-1], next=parts[i+1];
+  reader.innerHTML=`<div class="rd-bar"><span>שוקדים, ${esc(p.title)}</span><button type="button" class="sheet-x" data-rd-close aria-label="סגירה">×</button></div>
+    <article class="rd-body" tabindex="-1"><h2>${esc(x.t)}</h2>${x.img[0]?`<img src="${esc(x.img[0])}" alt="">`:""}${x.b.map(paraHtml).join("")}${x.img.slice(1).map(u=>`<img src="${esc(u)}" alt="" loading="lazy">`).join("")}${x.links.length?`<div class="rd-links">${x.links.map(l=>`<a class="btn ghost" href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join("")}</div>`:""}</article>
+    <nav class="rd-nav" aria-label="מעבר בין כתבות"><button type="button" ${prev?`data-rd="${i-1}"`:"disabled"}><small>הקודם</small><b>${prev?esc(prev.t):""}</b></button><button type="button" ${next?`data-rd="${i+1}"`:"disabled"}><small>הבא</small><b>${next?esc(next.t):""}</b></button></nav>`;
+  if(!reader.open){ if(reader.showModal) reader.showModal(); else reader.setAttribute("open","") }
+  const body=reader.querySelector(".rd-body"); body.scrollTop=0; body.focus();
+}
+document.addEventListener("click",e=>{ const s=e.target.closest("[data-story]"); if(!s) return; const [pid,i]=s.dataset.story.split(":"); openStory(pid,Number(i)); });

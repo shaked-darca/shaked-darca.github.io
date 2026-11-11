@@ -1017,6 +1017,48 @@ html[data-fs="2"]{font-size:125%}
   .dock :focus-visible{outline-color:var(--hero-water)}
   #root>.foot{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 }
+
+/* ---------- 9. שוקדים כמגזין: מכתב פותח, כתבות עם תמונות, וקריאה במסך מלא ---------- */
+.mag{display:grid;gap:20px}
+.mag-lead{display:grid;gap:8px;border-inline-start:3px solid var(--palm);padding-inline-start:16px}
+.mag-lead h3{font-family:var(--f-body);font-weight:800;font-size:1rem;color:var(--palm)}
+.mag-lead p{margin:0;font-family:var(--f-display);font-size:1.15rem;line-height:1.75;text-align:justify;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.mag-go{justify-self:start;border:0;background:none;padding:4px 0;font:inherit;font-weight:700;color:var(--water);cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+.st{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start;width:100%;text-align:start;background:none;border:0;border-top:1px solid var(--line);padding:16px 0;margin:0;cursor:pointer;font:inherit;color:inherit;-webkit-tap-highlight-color:transparent}
+.st-t{display:grid;gap:5px;min-width:0}
+.st-t b{font-family:var(--f-display);font-weight:700;font-size:1.2rem;line-height:1.3;text-wrap:balance}
+.st-t span{color:var(--muted);font-size:.95rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.st img{width:104px;height:104px;object-fit:cover;border-radius:10px;display:block;background:var(--sunk)}
+.st:hover .st-t b,.st:focus-visible .st-t b{color:var(--water)}
+.st.feat{grid-template-columns:minmax(0,1fr);gap:12px;border-top:0;padding:0 0 4px}
+.st.feat img{width:100%;height:auto;aspect-ratio:16/9;border-radius:12px;order:-1}
+.st.feat .st-t b{font-size:1.55rem}
+.st.feat .st-t span{font-size:1rem;-webkit-line-clamp:3}
+.mag-list{display:grid}
+@media (min-width:900px){.mag-list.all{grid-template-columns:1fr 1fr;column-gap:32px}}
+@media (max-width:640px){.st img{width:88px;height:88px}.st.feat .st-t b{font-size:1.35rem}}
+
+.reader{border:0;padding:0;background:var(--surface);color:var(--ink);width:min(720px,100vw);max-width:100vw;height:min(92dvh,920px);max-height:100dvh;border-radius:16px;overflow:hidden;box-shadow:var(--lift)}
+.reader[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.reader::backdrop{background:rgb(8 18 15 / .6)}
+.rd-bar{display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;border-bottom:1px solid var(--line)}
+.rd-bar span{flex:1;min-width:0;color:var(--muted);font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-body{overflow-y:auto;overscroll-behavior:contain;padding:22px 22px 30px}
+.rd-body>*{max-width:62ch;margin-inline:auto}
+.rd-body h2{font-weight:700;font-size:clamp(1.7rem,5vw,2.2rem);line-height:1.2;margin-bottom:16px}
+.rd-body p{margin:0 auto 16px;font-size:1.12rem;line-height:1.85;text-align:justify}
+.rd-body p.lines{text-align:start;white-space:pre-line;background:var(--palm-soft);border-radius:10px;padding:10px 14px}
+.rd-body img{display:block;width:100%;height:auto;border-radius:12px;margin-bottom:16px;background:var(--sunk)}
+.rd-links{display:flex;flex-wrap:wrap;gap:8px}
+.rd-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--surface)}
+.rd-nav button{display:grid;gap:1px;text-align:start;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:8px 14px;font:inherit;color:inherit;cursor:pointer;min-width:0;min-height:54px}
+.rd-nav button:disabled{opacity:.35;cursor:default}
+.rd-nav small{color:var(--muted);font-weight:700;font-size:.78rem}
+.rd-nav b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:640px){.reader{width:100vw;height:100dvh;border-radius:0;margin:0}}
+
+/* באפליקציה המותקנת באייפון: התוכן לא נכנס מתחת לשעון ולסוללה */
+body::before{content:"";position:fixed;inset:0 0 auto 0;height:env(safe-area-inset-top,0px);background:var(--hero);z-index:30}
 </style>
 <template id="shell">
 <a class="skip" href="#view">דילוג לתוכן</a>
@@ -2420,6 +2462,48 @@ function proSync(t){
   if(proLast!==null&&proLast!==t) window.scrollTo(0,0);
   proLast=t;
 }
+
+/* ---- שוקדים כמגזין (מחליף את רשימת החיצים): מכתב פותח, כתבות עם תמונה ותקציר, קריאה במסך מלא ---- */
+function issueParts(p){
+  const paras=String(p.body||"").split(/\n\s*\n/).filter(Boolean);
+  const parts=(p.sections||[]).map(x=>({t:x.t,b:x.b||[],img:x.img||[],links:x.links||[]}));
+  if(paras.length) parts.unshift({t:"דבר המנהל",b:paras,img:[],links:[],lead:true});
+  return parts;
+}
+function issueCard(p,mode){
+  if(S.editing&&S.editPost===p.id) return issueEditForm(p);
+  const parts=issueParts(p), lead=parts[0]&&parts[0].lead?parts[0]:null;
+  const stories=parts.map((x,i)=>[x,i]).filter(([x])=>!x.lead);
+  const fi=stories.findIndex(([x])=>x.img.length), feat=fi>=0?stories.splice(fi,1)[0]:null;
+  const home=mode==="home", shown=home?stories.slice(0,4):stories, rest=stories.length-shown.length;
+  const card=([x,i],big)=>`<button type="button" class="st${big?" feat":""}" data-story="${p.id}:${i}"><span class="st-t"><b>${esc(x.t)}</b><span>${esc((x.b[0]||"").replace(/\s+/g," "))}</span></span>${x.img.length?`<img src="${esc(x.img[0])}" alt="" loading="lazy">`:""}</button>`;
+  const fallback=!stories.length&&!feat&&p.toc&&p.toc.length?`<div class="toc"><span class="label">עוד בגיליון</span><ul>${p.toc.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:"";
+  return `<article class="issue mag">
+    <header class="issue-head"><span class="kicker">שוקדים על המלאכה</span><span class="meta">${esc(p.heb||"")}${p.heb?", ":""}${fmt(p.date)}</span></header>
+    <h2>${esc(p.title)}</h2>
+    ${lead?`<div class="mag-lead"><h3>דבר המנהל</h3><p>${esc(lead.b.slice(0,2).join(" "))}</p><button type="button" class="mag-go" data-story="${p.id}:0">להמשך המכתב</button></div>`:""}
+    ${feat?card(feat,true):""}
+    ${shown.length?`<div class="mag-list${home?"":" all"}">${shown.map(s=>card(s,false)).join("")}</div>`:""}${fallback}
+    <div class="row">${home&&rest>0?`<a class="btn" href="#shokdim">עוד ${rest} כתבות בגיליון</a>`:""}${p.pages&&p.pages.length?`<button class="btn ghost" data-issue="${p.id}" data-page="0">הגיליון המקורי</button>`:""}${p.pdf&&S.cap.downloads?`<button class="btn ghost" data-pdf="${p.id}">הורדת PDF</button>`:""}<span class="msg" id="pdfMsg-${p.id}" role="status"></span>${home&&rest<=0?`<a class="btn ghost" href="#shokdim">גיליונות קודמים</a>`:""}${S.editing?`<button class="btn" data-edit-post="${p.id}">עריכת הגיליון</button><button class="btn danger" data-del-post="${p.id}">מחיקה</button>`:""}</div>
+  </article>`;
+}
+let reader=null;
+function openStory(pid,i){
+  const p=DATA.posts.find(x=>x.id===pid); if(!p) return;
+  const parts=issueParts(p), x=parts[i]; if(!x) return;
+  if(!reader){ reader=document.createElement("dialog"); reader.className="reader"; document.body.appendChild(reader);
+    reader.addEventListener("click",e=>{ if(e.target===reader){reader.close();return}
+      const b=e.target.closest("button"); if(!b) return;
+      if("rdClose" in b.dataset) reader.close(); else if(b.dataset.rd) openStory(reader.dataset.pid,Number(b.dataset.rd)); }); }
+  reader.dataset.pid=pid; reader.setAttribute("aria-label",x.t);
+  const prev=parts[i-1], next=parts[i+1];
+  reader.innerHTML=`<div class="rd-bar"><span>שוקדים, ${esc(p.title)}</span><button type="button" class="sheet-x" data-rd-close aria-label="סגירה">×</button></div>
+    <article class="rd-body" tabindex="-1"><h2>${esc(x.t)}</h2>${x.img[0]?`<img src="${esc(x.img[0])}" alt="">`:""}${x.b.map(paraHtml).join("")}${x.img.slice(1).map(u=>`<img src="${esc(u)}" alt="" loading="lazy">`).join("")}${x.links.length?`<div class="rd-links">${x.links.map(l=>`<a class="btn ghost" href="${esc(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>`).join("")}</div>`:""}</article>
+    <nav class="rd-nav" aria-label="מעבר בין כתבות"><button type="button" ${prev?`data-rd="${i-1}"`:"disabled"}><small>הקודם</small><b>${prev?esc(prev.t):""}</b></button><button type="button" ${next?`data-rd="${i+1}"`:"disabled"}><small>הבא</small><b>${next?esc(next.t):""}</b></button></nav>`;
+  if(!reader.open){ if(reader.showModal) reader.showModal(); else reader.setAttribute("open","") }
+  const body=reader.querySelector(".rd-body"); body.scrollTop=0; body.focus();
+}
+document.addEventListener("click",e=>{ const s=e.target.closest("[data-story]"); if(!s) return; const [pid,i]=s.dataset.story.split(":"); openStory(pid,Number(i)); });
 
 render();
 
