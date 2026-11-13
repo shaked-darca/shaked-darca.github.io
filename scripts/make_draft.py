@@ -26,7 +26,9 @@ rep("<head>", '<head>\n<meta name="robots" content="noindex">')
 s = re.sub(r"<title>(.*?)</title>", r"<title>טיוטה · \1</title>", s, count=1)
 
 # ---------- fonts ----------
-rep("family=Noto+Serif+Hebrew:wght@700", "family=Noto+Serif+Hebrew:wght@700&family=Frank+Ruhl+Libre:wght@500;700;900")
+# the live site now ships Frank Ruhl Libre itself (fonts/); add the Google font only for older pages
+if "frank-ruhl-libre" not in s and "family=Noto+Serif+Hebrew:wght@700" in s:
+    rep("family=Noto+Serif+Hebrew:wght@700", "family=Noto+Serif+Hebrew:wght@700&family=Frank+Ruhl+Libre:wght@500;700;900")
 
 # ---------- header: one white bar ----------
 a = s.index('<header class="top">')
@@ -68,7 +70,8 @@ function homeDoors(){
 }
 '''
 rep("/* ---------- home ---------- */\nfunction homeView(){", home_js + "\n/* ---------- home ---------- */\nfunction homeView(){")
-rep('return myWeek()+`<div class="home">', 'return homeHero()+homeDoors()+myWeek()+`<div class="home">')
+s, n = re.subn(r'return ((?:todayBoard\(\)\+)?myWeek\(\)\+`<div class="home">)', r'return homeHero()+homeDoors()+\1', s, count=1)
+assert n == 1, "missing: home return line"
 
 # ---------- texts ----------
 rep('<span class="legend">בחרו את השכבה שלכם, והאתר יזכור אותה</span>', '<span class="legend">באיזו שכבה אתם?</span>')
