@@ -916,6 +916,12 @@ html[data-fs="2"]{font-size:125%}
   .tday-heb{animation:tdayIn .7s cubic-bezier(.2,.7,.2,1) both}
   @keyframes tdayIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 }
+/* no big date: the strip only holds the next holiday (and the vision on wide screens) */
+.tday-in{padding-bottom:64px}
+.tday-next{margin:0}
+.tday+.myweek{margin-top:-44px}
+@media (max-width:760px){.tday-in{padding-bottom:56px}.tday+.myweek{margin-top:-40px}}
+
 
 /* ---------- 6. ליטוש רכיבים ---------- */
 .myweek{padding:18px 20px;gap:14px}
@@ -2495,8 +2501,6 @@ function hebDate(d){
   }catch(e){ return "" }
 }
 function todayBoard(){
-  const heb=hebDate(today);
-  const greg=`יום ${WD[today.getDay()]}, ${today.getDate()} ב${MN[today.getMonth()]} ${today.getFullYear()}`;
   /* החג או החופשה הבאים בלוח הכללי */
   const t0=iso(today);
   const nx=(DATA.events||[]).filter(e=>e.type==="holiday"&&e.grades.includes("all")&&(e.end||e.date)>=t0).sort((a,b)=>a.date.localeCompare(b.date))[0];
@@ -2506,7 +2510,7 @@ function todayBoard(){
   const V=DATA.vision||{};
   return `<section class="tday" aria-label="היום">
     <div class="tday-in">
-      <div><p class="tday-day">${greg}</p><h2 class="tday-heb">${heb||greg}</h2>${next}</div>
+      <div>${next}</div>
       ${V.text?`<figure class="tday-quote"><blockquote>${esc(V.text)}</blockquote>${V.by?`<figcaption>${esc(V.by)}</figcaption>`:""}</figure>`:""}
     </div>
     <svg class="tday-wave" viewBox="0 0 1200 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 16 C150 2 300 30 450 16 S750 2 900 16 S1100 30 1200 14 V30 H0Z" fill="var(--bg)"/></svg>
