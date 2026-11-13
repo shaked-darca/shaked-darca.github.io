@@ -111,7 +111,12 @@ function issueCard(p,mode){
   if(S.editing&&S.editPost===p.id) return issueEditForm(p);
   const parts=issueParts(p), lead=parts[0]&&parts[0].lead?parts[0]:null;
   const stories=parts.map((x,i)=>[x,i]).filter(([x])=>!x.lead);
-  const fi=stories.findIndex(([x])=>x.img.length), feat=fi>=0?stories.splice(fi,1)[0]:null;
+  /* the big photo: the story named in p.feature, else the first story with a photo that isn't פינת הפירגון */
+  const hasImg=([x])=>x.img.length;
+  let fi=p.feature?stories.findIndex(([x])=>hasImg([x])&&x.t===p.feature):-1;
+  if(fi<0) fi=stories.findIndex(([x])=>hasImg([x])&&!/פירגון/.test(x.t));
+  if(fi<0) fi=stories.findIndex(hasImg);
+  const feat=fi>=0?stories.splice(fi,1)[0]:null;
   const home=mode==="home", shown=home?stories.slice(0,4):stories, rest=stories.length-shown.length;
   const card=([x,i],big)=>`<button type="button" class="st${big?" feat":""}" data-story="${p.id}:${i}"><span class="st-t"><b>${esc(x.t)}</b><span>${esc((x.b[0]||"").replace(/\s+/g," "))}</span></span>${x.img.length?`<img src="${esc(x.img[0])}" alt="" loading="lazy">`:""}</button>`;
   const fallback=!stories.length&&!feat&&p.toc&&p.toc.length?`<div class="toc"><span class="label">עוד בגיליון</span><ul>${p.toc.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:"";
