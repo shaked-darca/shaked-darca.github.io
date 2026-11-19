@@ -337,15 +337,15 @@ function ownCell_(req) {
   const r = Number(req.row), c = Number(req.col);
   if (!(r > 0) || c < COMP_FIRST || c > CART_COL) throw new Error("הזמנה לא תקינה");
   const rng = sh.getRange(r + 1, c + 1, 1, 2);
-  const v = rng.getDisplayValues()[0], note = String(sh.getRange(r + 1, c + 1).getNote() || "");
-  const ok = String(v[0]).trim() === String(req.who || "").trim() && String(v[1]).trim() === String(req.what || "").trim() && note.indexOf(SITE_NOTE) === 0;
+  const v = rng.getDisplayValues()[0];
+  const ok = String(v[0]).trim() === String(req.who || "").trim() && String(v[1]).trim() === String(req.what || "").trim() && isSite_(sh, r, c, v);
   return { sh, r, c, rng, ok };
 }
 
 function cancel_(req) {
   const o = ownCell_(req);
   if (!o.ok) return { ok: false, error: "ההזמנה השתנתה בטבלה, אפשר לבטל רק דרך הטבלה" };
-  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal").setFontColor("#000000");
+  o.rng.clearContent(); unmark_(o.sh, o.r, o.c); o.rng.setFontWeight("normal").setFontColor("#000000");
   SpreadsheetApp.flush();
   return { ok: true };
 }
@@ -369,7 +369,7 @@ function edit_(req) {
   const b = book_({ wd: toWd, rows: [toRow], who, what: cart ? "" : what, cart, fixed });
   const res = b.results[0];
   if (!res || !res.ok) return { ok: false, error: (res && res.msg) || "לא הצלחנו להזמין במקום החדש, ההזמנה הקודמת נשארה" };
-  o.rng.clearContent(); o.rng.clearNote(); o.rng.setFontWeight("normal").setFontColor("#000000");
+  o.rng.clearContent(); unmark_(o.sh, o.r, o.c); o.rng.setFontWeight("normal").setFontColor("#000000");
   SpreadsheetApp.flush();
   return { ok: true, date: b.date, refs: res.refs.map(f => ({ wd: toWd, row: toRow, col: f.col, who: f.who, what: f.what })) };
 }
@@ -400,7 +400,45 @@ function put_(sh, r, c, who, what, note, fixed) {
   const rng = sh.getRange(r + 1, c + 1, 1, 2);
   // צבע שחור: תא שהתפנה אחרי הזמנה מוקפאת נשאר אדום, ובלי זה הזמנה חדשה הייתה נראית מוקפאת
   rng.setValues([[safe_(who), safe_(what)]]).setFontWeight(fixed ? "bold" : "normal").setFontColor("#000000");
-  sh.getRange(r + 1, c + 1).setNote(note);
+  mark_(sh, r, c, who, what);
+}
+
+/* ---------- סימון נסתר של הזמנות מהאתר ----------
+ * כדי שביטול/עריכה מהאתר ייגעו רק בהזמנות שנעשו מהאתר, הסקריפט זוכר אותן במאפייני הסקריפט
+ * (מקום נסתר שרק הסקריפט רואה) – בלי לכתוב הערה בטבלה. */
+function markKey_(sh, r, c) { return "cp:" + sh.getName() + ":" + r + ":" + c; }
+function mark_(sh, r, c, who, what) {
+  const p = PropertiesService.getScriptProperties();
+  p.setProperty(markKey_(sh, r, c), JSON.stringify({ who, what, at: Date.now() }));
+  // ניקוי סימונים בני יותר משלושה שבועות (הטבלה מתחלפת כל שבוע)
+  const all = p.getProperties(), old = Date.now() - 21 * 864e5;
+  Object.keys(all).forEach(k => { if (k.indexOf("cp:") === 0) { try { if (JSON.parse(all[k]).at < old) p.deleteProperty(k); } catch (e) { p.deleteProperty(k); } } });
+}
+function unmark_(sh, r, c) {
+  PropertiesService.getScriptProperties().deleteProperty(markKey_(sh, r, c));
+  const cell = sh.getRange(r + 1, c + 1);
+  if (String(cell.getNote() || "").indexOf(SITE_NOTE) === 0) cell.clearNote(); // הערה ישנה, מלפני השינוי
+}
+function isSite_(sh, r, c, v) {
+  const s = PropertiesService.getScriptProperties().getProperty(markKey_(sh, r, c));
+  if (s) { try { const m = JSON.parse(s); return m.who === String(v[0]).trim() && m.what === String(v[1]).trim(); } catch (e) {} }
+  return String(sh.getRange(r + 1, c + 1).getNote() || "").indexOf(SITE_NOTE) === 0; // הזמנות ישנות עם הערה
+}
+
+/** פעם אחת: מוחק מהטבלה את כל ההערות "הוזמן מהאתר" שנכתבו עד עכשיו, ורושם את ההזמנות האלה בסימון הנסתר. */
+function removeSiteNotes() {
+  let n = 0;
+  Object.keys(COMPUTERS_DAYS).forEach(wd => {
+    const sh = SpreadsheetApp.openById(COMPUTERS_SHEET).getSheetByName(COMPUTERS_DAYS[wd]);
+    if (!sh) return;
+    const rng = sh.getDataRange(), notes = rng.getNotes(), vals = rng.getDisplayValues();
+    notes.forEach((row, r) => row.forEach((note, c) => {
+      if (String(note).indexOf(SITE_NOTE) !== 0) return;
+      mark_(sh, r, c, String(vals[r][c]).trim(), String(vals[r][c + 1] || "").trim());
+      sh.getRange(r + 1, c + 1).clearNote(); n++;
+    }));
+  });
+  Logger.log("נמחקו " + n + " הערות");
 }
 function clean_(s, max) { return String(s || "").replace(/\s+/g, " ").trim().slice(0, max); }
 // מונע מטקסט שמתחיל ב-= או + להפוך לנוסחה בגיליון
